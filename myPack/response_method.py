@@ -4,7 +4,6 @@ from scipy.fftpack import fft, ifft, fftfreq
 import matplotlib.pyplot as plt
 from myPack.constitution import Slip,Linear,Bilinear,Combined
 from myPack.make_matrix import House,House_NL
-from tqdm import tqdm
 
 # Linear
 class Response:
