@@ -266,8 +266,11 @@ class Bilinear(Slip):
 
 class Combined:
     def __init__(self,model):
+        # model: list of constitution models
+        # example: [[Linear(*args)], [Slip(*args), Bilinear(*args)]]
+        # This means 1st-floor uses model Linear(*args) and 2nd-floor uses Slip(*args) AND Bilinear(*args).
+        # If more than one model is in one floor, the sheer force will be added.
         self.model = model
-        # self.nfloor = len(model)
 
     def sheer(self,x):
         f = []
@@ -292,3 +295,19 @@ class Combined:
                 K_floor += part.Ktan
             K += [K_floor]
         return np.array(K)
+
+    @property
+    def X(self):
+        Xlist = []
+        for floor in self.model:
+            for part in floor:
+                Xlist += [part.X]
+        return np.stack(Xlist)
+
+    @property
+    def F(self):
+        Flist = []
+        for floor in self.model:
+            for part in floor:
+                Flist += [part.F]
+        return np.stack(Flist)

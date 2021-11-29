@@ -19,6 +19,7 @@ class Data(object):
             self.N -= 1
         self.fname = fname
 
+        self.time0 = self.time[:]
         self.acc0 = self.acc[:]
         self.dt0 = dt
         self.N0 = self.N
@@ -35,6 +36,9 @@ class Data(object):
         acc0 = self.acc
         zeros = np.zeros(2**(n-1)-int(self.N/2))
         acc0 = np.concatenate([zeros,acc0,zeros])
+        t0 = self.time0[0] - self.dt0*len(zeros)
+        tend = self.time0[-1] + self.dt0*len(zeros)
+        self.time0 = np.linspace(t0,tend,len(acc0))
         self.freqList = fftfreq(len(acc0), d=self.dt)
         self.period = 2*np.pi/self.freqList
         self.fftAcc = fft(acc0)
@@ -44,19 +48,21 @@ class Data(object):
         # self.fftAccAfter[np.abs(self.freqList) < fs] = 0  # トレンド成分を落とす
         # self.fftAccAfter[np.abs(self.freqList) > fn] = 0  # ナイキスト周波数以上を落とす
         accAfter = np.real(ifft(self.fftAccAfter))
-        self.accAfter = accAfter
+        self.acc0 = accAfter
 
     def Interpolation(self,div=10,to_acc0=True):
         self.dtInterpolated = self.dt / div
-        n = len(self.accAfter)
+        n = len(self.acc0)
         acc = np.zeros((div*n))
+        time = np.linspace(self.time0[0],self.time0[-1],div*n)
 
         for i in range(n-1):
-            a,b = self.accAfter[i:i+2]
+            a,b = self.acc0[i:i+2]
             for j in range(div):
                 acc[div*(i-1)+j] = a+(b-a)*(j-1)/div
         self.accInterpolated = acc
         if to_acc0:
+            self.time0 = time
             self.acc0 = acc
             self.dt0 = self.dtInterpolated
             self.N0 = self.N * div

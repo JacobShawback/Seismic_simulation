@@ -16,6 +16,7 @@ class Response:
         self.l1,self.l2=house.l
         self.acc = wave.acc0
         self.dt = wave.dt0
+        self.time = wave.time0
         self.fname = fname
 
     def to_relative(self,x):
@@ -303,6 +304,13 @@ class NL_4dof(Response):
         dis = [x[0],x[1]-x[0],x[2],x[3]]
         return np.array(dis)
 
+    def save_txt(self,Acc,Vel,Dis,model):
+        np.savetxt(f'{self.data_path}{self.fname}_Acc',Acc)
+        np.savetxt(f'{self.data_path}{self.fname}_Vel',Vel)
+        np.savetxt(f'{self.data_path}{self.fname}_Dis',Dis)
+        np.savetxt(f'{self.data_path}{self.fname}_x',model.X)
+        np.savetxt(f'{self.data_path}{self.fname}_f',model.F)
+
     def different(self):
         a0,dt = self.acc,self.dt
         n = len(a0)
@@ -333,9 +341,7 @@ class NL_4dof(Response):
             dnext = np.dot(K_hat_inv,Rhat)
             Acc[:,i] = (Dis[:,i-1]-2*Dis[:,i]+dnext)/dt**2
             Vel[:,i] = (-Dis[:,i-1]+dnext)/2/dt
-        np.savetxt(f'{self.data_path}{self.fname}_Acc',Acc)
-        np.savetxt(f'{self.data_path}{self.fname}_Vel',Vel)
-        np.savetxt(f'{self.data_path}{self.fname}_Dis',Dis)
+        self.save_txt(Acc,Vel,Dis,model)
 
     def newmark(self):
         def newmark(a1,a2,v,d,dt,beta):
@@ -393,20 +399,18 @@ class NL_4dof(Response):
                 Acc[:,i+1] = A4
                 Vel[:,i+1] = V3
                 Dis[:,i+1] = D3
-        np.savetxt(f'{self.data_path}{self.fname}_Acc',Acc)
-        np.savetxt(f'{self.data_path}{self.fname}_Vel',Vel)
-        np.savetxt(f'{self.data_path}{self.fname}_Dis',Dis)
+        self.save_txt(Acc,Vel,Dis,model)
 
     def get_names(self):
-        floor_name = ['2nd floor','1st floor','Base','Rocking']
-        floor_file = ['2nd','1st','base','rock']
+        floor_name = ['2nd floor','1st floor','Sway','Rocking']
+        floor_file = ['2f','1f','sway','rock']
         unit_list = ['[m]','[m/sec]','[m/sec^2]']
         type_tag = ['Displacement','Velocity','Acceleration']
-        return floor_name,floor_file,unit_list,type_tag
+        models = ['2f column','2f wall','1f column','1f wall','Sway','Rocking']
+        return floor_name,floor_file,unit_list,type_tag,models
 
     def plot(self):
-        wave,house = self.wave,self.house
-        floor_name,floor_file,unit_list,type_tag = self.get_names()
+        floor_name,floor_file,unit_list,type_tag,models = self.get_names()
 
         # Acc.shape: dof,nstep
         Dis = np.loadtxt(f'{self.data_path}{self.fname}_Dis')
@@ -420,57 +424,60 @@ class NL_4dof(Response):
 
         u_list = Dis,Vel,Acc
 
-        xlim = 1e-3,6e1
         Nt = len(self.acc)
-        nn = int(Nt/2-1)
-        N0 = wave.N0
-        tstart,tend = int((Nt-1.5*N0)/2),int((Nt+1.5*N0)/2)
-        nshow = tend - tstart
+        N0 = self.wave.N0
+        tstart,tend = int((Nt-1.1*N0)/2),int((Nt+1.5*N0)/2)
         for i,(name,fname) in enumerate(zip(floor_name,floor_file)):
             for j,(tt,unit) in enumerate(zip(type_tag,unit_list)):
                 u = u_list[j]
-                # U = np.abs(fft(u))
 
                 # ================ Wave ================
                 fig,ax = plt.subplots()
                 ax.set_title(name)
                 ax.set_xlabel('Time [sec]')
                 ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
-                ax.plot(np.arange(nshow)*self.dt,u[i,tstart:tend]) #label
+                ax.plot([self.time[tstart],self.time[tend]],[0,0],color='black')
+                ax.plot(self.time[tstart:tend],u[i,tstart:tend]) #label
+                ax.set_xlim(self.time[tstart],self.time[tend])
+                ymax = np.abs(u[i]).max() * 1.05
+                ax.set_ylim(-ymax,ymax)
                 # ax.legend()
                 fig.savefig(f'{self.fig_path}wave/{self.fname}_{tt}_{fname}.png')
                 plt.close(fig)
 
-                # # ================ Fourier Spectrum ================
-                # fig,ax = plt.subplots()
-                # ax.set_title(name)
-                # ax.set_xlabel('Frequency [Hz]')
-                # ax.set_ylabel('Fourier Spectrum of {}'.format(tt), labelpad=6.0)
-                # ax.plot(wave.freqList[:nn],U[0][i,:nn],label=domain[0]) #label
-                # ax.plot(wave.freqList[:nn],U[1][i,:nn],label=domain[1]) #label
-                # ax.legend(bbox_to_anchor=(0,0),loc='lower left',borderaxespad=0)
-                # ax.semilogx()
-                # ax.semilogy()
-                # ax.set_xlim(*xlim)
-                # fig.savefig('fig/freq/{}_{}_{}.png'.format(self.fname,tt,fname))
-                # plt.close(fig)
-
-        # angle
+        # =============== Angle ===============
         floor = ['1st floor','2nd floor']
         fig,ax = plt.subplots()
         ax.set_title('Angle')
         ax.set_xlabel('Time [sec]')
         ax.set_ylabel('Angle', labelpad=6.0)
         label = [floor[i]+', max:{:.3g}'.format(np.abs(angle[i]).max()) for i in range(2)]
-        ax.plot(np.arange(nshow)*wave.dt,angle[0,tstart:tend],label=label[0])
-        ax.plot(np.arange(nshow)*wave.dt,angle[1,tstart:tend],label=label[1])
-        ax.plot([0,nshow*wave.dt],[1/120,1/120],color='red')
-        ax.plot([0,nshow*wave.dt],[-1/120,-1/120],color='red')
+        ax.plot(self.time[tstart:tend],angle[0,tstart:tend],label=label[0])
+        ax.plot(self.time[tstart:tend],angle[1,tstart:tend],label=label[1])
+        ax.plot([self.time[tstart],self.time[tend]],[1/120,1/120],color='red')
+        ax.plot([self.time[tstart],self.time[tend]],[-1/120,-1/120],color='red')
         ax.legend()
-        ax.set_xlim(0,nshow*wave.dt)
+        ax.set_xlim(self.time[tstart],self.time[tend])
+        ymax = np.abs(angle).max() * 1.05
+        ax.set_ylim(-ymax,ymax)
         fig.savefig(f'{self.fig_path}wave/{self.fname}_Angle.png')
-        fig.savefig('fig/wave/{}_angle.png'.format(self.fname))
         plt.close(fig)
+
+        # =============== Constitution ===============
+        x = np.loadtxt(f'{self.data_path}{self.fname}_x')
+        f = np.loadtxt(f'{self.data_path}{self.fname}_f')
+        for i,m in enumerate(models):
+            fig,ax = plt.subplots()
+            # ax.set_title('elongation - force')
+            ax.set_xlabel('Elongation of spring [m]')
+            ax.set_ylabel('Reaction force [N]', labelpad=6.0)
+            ax.plot(x[i],f[i],label=m)
+            ax.legend(bbox_to_anchor=(1,0),loc='lower right',borderaxespad=0)
+            # ax.set_xlim(self.time[tstart],self.time[tend])
+            # ymax = np.abs(angle).max() * 1.05
+            # ax.set_ylim(-ymax,ymax)
+            fig.savefig(f'{self.fig_path}constitution/{self.fname}_{i+1}.png')
+            plt.close(fig)
 
 
 class NL_2dof(NL_4dof):
