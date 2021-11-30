@@ -9,6 +9,12 @@ Format.params()
 
 tstart = time()
 
+# INPUT DATA --------------------------------------
+data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**0)
+# data.Output()
+# data.ResponseSpectrum()
+
+
 # STRUCTURE PARAMETER --------------------------------------
 Area_f = 71.626  # [m2]
 m1 = 9760.54  # 2F weight [kg]
@@ -26,31 +32,21 @@ kth = 5.75e10  # [N*m/rad]
 cf = 4.38e6  # [N/m]
 cth = 3.69e7
 
-args = {'m1':m1,'m2':m2,'mf':mf,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'clough_alpha_c':0.05,'clough_alpha_w':0.05}
+args = {'m1':m1,'m2':m2,'mf':mf,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.05,'slip_rate_c':0.85,'slip_rate_w':0.85}
+# args = {'m1':m1,'m2':m2,'mf':mf,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.05,'slip_rate_c':1,'slip_rate_w':1}
 house_x = House_NL(**args,If=Ifx,kc=kcx,kw=kwx)
 # house_y = House_NL(**args,If=Ify,kc=kcy,kw=kwy)
 
 
-# INPUT DATA --------------------------------------
-data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
-# data.Output()
-# data.ResponseSpectrum()
-
-
-# # MODAL ANALYSIS --------------------------------------
-# Mode = ModalAnalysis(house_x.M, house_x.K, house_x.F)
-# Mode.NaturalValue('4DOF')
-# # Mode.Participation()
-# # print(np.sum(Mode.beta))
-
-
 # # FREQ ANALYSIS -------------------------------------
-# modelx = NL_2dof(house_x,data,'nl-x-nb')
-# modelx.newmark()
-# modelx = NL_2dof(house_x,data,'nl-x-df')
-modelx = NL_4dof(house_x,data,'nl-x-df-4')
-modelx.different()
-modelx.plot()
+linear = True
+# modelx = NL_2dof(house_x,data,'x-nb-2-sb')
+# modelx.newmark(linear=linear)
+modelx = NL_2dof(house_x,data,'x-df-2-sb')  # slip-bilinear
+# modelx = NL_2dof(house_x,data,'x-df-2-s')  # slip
+# modelx = NL_4dof(house_x,data,'x-df-4')
+modelx.different(linear=linear)
+modelx.plot(linear=linear)
 
 elapsed_time = time() - tstart
 print(f'\nTotal time: {elapsed_time:.2f}s')

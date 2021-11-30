@@ -181,8 +181,8 @@ class Slip(Linear):
 
 
 class Bilinear(Slip):
-    def __init__(self, k1, k2, dyield):
-        super().__init__(k1, k2, dyield)
+    def __init__(self,k1,k2,dyield):
+        super().__init__(k1,k2,dyield)
         self.state,self.next_state = State.ELASTIC,State.ELASTIC
 
     @property
@@ -262,6 +262,31 @@ class Bilinear(Slip):
             return self.k1
         else:
             return self.k2
+
+
+class Slip_Bilinear(Linear):
+    def __init__(self,k,alpha,dyield,slip_rate):
+        self.x,self.f = [0,0],[0,0]
+        slip_args = {'k1':k*slip_rate,'k2':k*alpha,'dyield':dyield}
+        bilin_args = {'k1':k*(1-slip_rate),'k2':0,'dyield':dyield}
+        self.slip = Slip(**slip_args)
+        self.bilinear = Bilinear(**bilin_args)
+        self.next_f,self.next_x = 0,0
+
+    def sheer(self,x):
+        self.next_x = x
+        self.next_f = self.slip.sheer(x)+self.bilinear.sheer(x)
+        return self.next_f
+
+    def push(self):
+        self.slip.push()
+        self.bilinear.push()
+        return super().push()
+
+    @property
+    def Ktan(self):
+        return self.slip.Ktan+self.bilinear.Ktan
+
 
 
 class Combined:

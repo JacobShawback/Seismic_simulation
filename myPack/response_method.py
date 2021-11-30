@@ -2,7 +2,7 @@ import numpy as np
 import numpy.linalg as LA
 from scipy.fftpack import fft, ifft, fftfreq
 import matplotlib.pyplot as plt
-from myPack.constitution import Slip,Linear,Bilinear,Combined
+from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined
 from myPack.make_matrix import House,House_NL
 
 # Linear
@@ -44,30 +44,66 @@ class Response:
         z[1] = (y[0]-y[1])/(self.l1-self.l2)
         return z
 
+    # def NewmarkB(self):
+    #     # NEWMARK PARAMETER  --------------------------------------
+    #     dof = self.M.shape[0]  # degree od freedom
+    #     # beta = 1/6  # linear acceleration
+    #     beta = 1/4 # average acceleration
+    #     # beta = 0 # explicit acceleration
+    #     dt = self.dt
+    #     N = len(self.acc)  # time step
+
+    #     # MAKE ZERO ARRAY--------------------------------------
+    #     Dis = np.zeros([dof,N])
+    #     Vel = np.zeros([dof,N])
+    #     Acc = np.zeros([dof,N])
+
+    #     # MAIN PART --------------------------------------
+    #     for i in range(1, N):
+    #         a1 = self.M + 0.5*dt*self.C + beta*dt**2*self.K
+    #         a21 = -np.dot(self.F,self.acc[i])  # acc[i]はスカラーだがこれが高速かも？
+    #         a22 = -np.dot(self.C,(Vel[:,i-1] + 0.5*dt*Acc[:,i-1]))
+    #         a23 = -np.dot(self.K,(Dis[:,i-1] + dt*Vel[:,i-1] + (0.5-beta)*dt**2*Acc[:,i-1]))
+    #         a2 = a21+a22+a23
+    #         Acc[:,i] = np.dot(LA.inv(a1),a2)
+    #         Vel[:,i] = Vel[:,i-1] + dt*(Acc[:,i-1] + Acc[:,i])/2
+    #         Dis[:,i] = Dis[:,i-1] + dt*Vel[:,i-1] + (0.5-beta)*dt**2*Acc[:,i-1] + beta*dt**2*Acc[:,i]
+
+    #     self.Dis = self.to_relative(Dis)
+    #     self.Vel = self.to_relative(Vel)
+    #     self.Acc = self.to_abs(Acc)
+    #     self.u_time = [self.Dis,self.Vel,self.Acc]
+    #     self.angle = self.to_angle(Dis)
+
     def NewmarkB(self):
         # NEWMARK PARAMETER  --------------------------------------
+        a0,dt = self.acc,self.dt
         dof = self.M.shape[0]  # degree od freedom
-        # beta = 1/6  # linear acceleration
-        beta = 1/4 # average acceleration
-        # beta = 0 # explicit acceleration
-        dt = self.dt
-        N = len(self.acc)  # time step
+        n = len(a0)  # time step
 
         # MAKE ZERO ARRAY--------------------------------------
-        Dis = np.zeros([dof,N])
-        Vel = np.zeros([dof,N])
-        Acc = np.zeros([dof,N])
+        Dis = np.zeros([dof,n])
+        Vel = np.zeros([dof,n])
+        Acc = np.zeros([dof,n])
 
         # MAIN PART --------------------------------------
-        for i in range(1, N):
-            a1 = self.M + 0.5*dt*self.C + beta*dt**2*self.K
-            a21 = -np.dot(self.F,self.acc[i])  # acc[i]はスカラーだがこれが高速かも？
-            a22 = -np.dot(self.C,(Vel[:,i-1] + 0.5*dt*Acc[:,i-1]))
-            a23 = -np.dot(self.K,(Dis[:,i-1] + dt*Vel[:,i-1] + (0.5-beta)*dt**2*Acc[:,i-1]))
-            a2 = a21+a22+a23
-            Acc[:,i] = np.dot(LA.inv(a1),a2)
-            Vel[:,i] = Vel[:,i-1] + dt*(Acc[:,i-1] + Acc[:,i])/2
-            Dis[:,i] = Dis[:,i-1] + dt*Vel[:,i-1] + (0.5-beta)*dt**2*Acc[:,i-1] + beta*dt**2*Acc[:,i]
+        Mbydt2,Cby2dt = self.M/dt**2,self.C/2/dt
+        K_hat_inv = LA.inv(Mbydt2+Cby2dt)
+        dnext = np.zeros(dof)
+
+        k = int(n/20)
+        for i in range(1,n-1):
+            if i%k == 0:
+                print(f'\t{int(100*i/n)}%')
+
+            Dis[:,i] = dnext
+            R = -np.dot(self.F,a0[i])
+            F = np.dot(self.K,Dis[:,i])
+
+            Rhat = R - F + np.dot(Mbydt2,2*Dis[:,i]-Dis[:,i-1]) + np.dot(Cby2dt,Dis[:,i-1])
+            dnext = np.dot(K_hat_inv,Rhat)
+            Acc[:,i] = (Dis[:,i-1]-2*Dis[:,i]+dnext)/dt**2
+            Vel[:,i] = (-Dis[:,i-1]+dnext)/2/dt
 
         self.Dis = self.to_relative(Dis)
         self.Vel = self.to_relative(Vel)
@@ -125,65 +161,67 @@ class Response:
 
         xlim = 1e-3,6e1
         Nt = len(self.acc)
-        nn = int(Nt/2-1)
+        N0 = self.wave.N0
+        tstart,tend = int((Nt-1.1*N0)/2),int((Nt+1.5*N0)/2)
+        Nshow = tend-tstart
         for i,(name,fname) in enumerate(zip(name_tag,fname_tag)):
-            # ================ Amplitude ================
-            fig,ax = plt.subplots()
-            ax.set_title(name)
-            ax.set_xlabel('Frequency [Hz]')
-            ax.set_ylabel('Amplitude factor', labelpad=6.0)
-            ax.plot(wave.freqList[:nn],self.H[:nn,i],label=domain[0]) #label
-            ax.semilogx()
-            ax.set_xlim(*xlim)
-            # ax.semilogy()
-            fig.savefig('fig/amp/{}_{}.png'.format(self.fname,fname))
-            plt.close(fig)
+            # # ================ Amplitude ================
+            # fig,ax = plt.subplots()
+            # ax.set_title(name)
+            # ax.set_xlabel('Frequency [Hz]')
+            # ax.set_ylabel('Amplitude factor', labelpad=6.0)
+            # ax.plot(wave.freqList[:nn],self.H[:nn,i],label=domain[0]) #label
+            # ax.semilogx()
+            # ax.set_xlim(*xlim)
+            # # ax.semilogy()
+            # fig.savefig('fig/amp/{}_{}.png'.format(self.fname,fname))
+            # plt.close(fig)
 
             for j,(tt,unit) in enumerate(zip(type_tag,unit_list)):
                 u = self.u_time[j],self.u_freq[j]
                 U = [np.abs(fft(ui)) for ui in u]
 
-                # ================ Fourier Spectrum ================
-                fig,ax = plt.subplots()
-                ax.set_title(name)
-                ax.set_xlabel('Frequency [Hz]')
-                ax.set_ylabel('Fourier Spectrum of {}'.format(tt), labelpad=6.0)
-                ax.plot(wave.freqList[:nn],U[0][i,:nn],label=domain[0]) #label
-                ax.plot(wave.freqList[:nn],U[1][i,:nn],label=domain[1]) #label
-                ax.legend(bbox_to_anchor=(0,0),loc='lower left',borderaxespad=0)
-                ax.semilogx()
-                ax.semilogy()
-                ax.set_xlim(*xlim)
-                fig.savefig('fig/freq/{}_{}_{}.png'.format(self.fname,tt,fname))
-                plt.close(fig)
+                # # ================ Fourier Spectrum ================
+                # fig,ax = plt.subplots()
+                # ax.set_title(name)
+                # ax.set_xlabel('Frequency [Hz]')
+                # ax.set_ylabel('Fourier Spectrum of {}'.format(tt), labelpad=6.0)
+                # ax.plot(wave.freqList[:nn],U[0][i,:nn],label=domain[0]) #label
+                # ax.plot(wave.freqList[:nn],U[1][i,:nn],label=domain[1]) #label
+                # ax.legend(bbox_to_anchor=(0,0),loc='lower left',borderaxespad=0)
+                # ax.semilogx()
+                # ax.semilogy()
+                # ax.set_xlim(*xlim)
+                # fig.savefig('fig/freq/{}_{}_{}.png'.format(self.fname,tt,fname))
+                # plt.close(fig)
 
                 # ================ Wave ================
+
                 fig,ax = plt.subplots()
                 ax.set_title(name)
                 ax.set_xlabel('Time [sec]')
                 ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
-                tstart,tend = int((Nt-wave.N)/2),int((Nt+wave.N)/2)
                 umax = [', max:{:.3g}'.format(np.abs(u[k][i]).max()) for k in range(2)]
-                ax.plot(np.arange(wave.N)*wave.dt,u[0][i,tstart:tend],label=domain[0]+umax[0]) #label
-                ax.plot(np.arange(wave.N)*wave.dt,u[1][i,tstart:tend],label=domain[1]+umax[1]) #label
+                ax.plot(np.arange(Nshow)*wave.dt0,u[0][i,tstart:tend],label=domain[0]+umax[0]) #label
+                ax.plot(np.arange(Nshow)*wave.dt0,u[1][i,tstart:tend],label=domain[1]+umax[1]) #label
                 ax.legend()
                 fig.savefig('fig/wave/{}_{}_{}.png'.format(self.fname,tt,fname))
                 plt.close(fig)
 
-                # magnified wave
-                if i == 0 and j == 0:
-                    fig,ax = plt.subplots()
-                    ax.set_title(name)
-                    ax.set_xlabel('Time [sec]')
-                    ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
-                    tstart,tend = int((Nt-wave.N)/2),int((Nt+wave.N)/2)
-                    umax = [', max:{:.3g}'.format(np.abs(u[k][i]).max()) for k in range(2)]
-                    ax.plot(np.arange(wave.N)*wave.dt,u[0][i,tstart:tend],label=domain[0]+umax[0]) #label
-                    ax.plot(np.arange(wave.N)*wave.dt,u[1][i,tstart:tend],label=domain[1]+umax[1]) #label
-                    ax.set_xlim(2,10)
-                    ax.set_ylim(0,0.08)
-                    fig.savefig('fig/wave/{}_{}_{}_magnify.png'.format(self.fname,tt,fname))
-                    plt.close(fig)
+                # # magnified wave
+                # if i == 0 and j == 0:
+                #     fig,ax = plt.subplots()
+                #     ax.set_title(name)
+                #     ax.set_xlabel('Time [sec]')
+                #     ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
+                #     tstart,tend = int((Nt-wave.N)/2),int((Nt+wave.N)/2)
+                #     umax = [', max:{:.3g}'.format(np.abs(u[k][i]).max()) for k in range(2)]
+                #     ax.plot(np.arange(wave.N)*wave.dt,u[0][i,tstart:tend],label=domain[0]+umax[0]) #label
+                #     ax.plot(np.arange(wave.N)*wave.dt,u[1][i,tstart:tend],label=domain[1]+umax[1]) #label
+                #     ax.set_xlim(2,10)
+                #     ax.set_ylim(0,0.08)
+                #     fig.savefig('fig/wave/{}_{}_{}_magnify.png'.format(self.fname,tt,fname))
+                #     plt.close(fig)
 
         # angle
         floor = ['1st floor','2nd floor']
@@ -191,14 +229,13 @@ class Response:
         ax.set_title('Angle')
         ax.set_xlabel('Time [sec]')
         ax.set_ylabel('Angle', labelpad=6.0)
-        tstart,tend = int((Nt-wave.N)/2),int((Nt+wave.N)/2)
         label = [floor[i]+', max:{:.3g}'.format(np.abs(self.angle[i]).max()) for i in range(2)]
-        ax.plot(np.arange(wave.N)*wave.dt,self.angle[0,tstart:tend],label=label[0])
-        ax.plot(np.arange(wave.N)*wave.dt,self.angle[1,tstart:tend],label=label[1])
-        ax.plot([0,wave.N*wave.dt],[1/120,1/120],color='red')
-        ax.plot([0,wave.N*wave.dt],[-1/120,-1/120],color='red')
+        ax.plot(np.arange(Nshow)*wave.dt0,self.angle[0,tstart:tend],label=label[0])
+        ax.plot(np.arange(Nshow)*wave.dt0,self.angle[1,tstart:tend],label=label[1])
+        ax.plot([0,wave.N*wave.dt0],[1/120,1/120],color='red')
+        ax.plot([0,wave.N*wave.dt0],[-1/120,-1/120],color='red')
         ax.legend()
-        ax.set_xlim(0,wave.N*wave.dt)
+        ax.set_xlim(0,wave.N*wave.dt0)
         fig.savefig('fig/wave/{}_angle.png'.format(self.fname))
         plt.close(fig)
 
@@ -280,20 +317,29 @@ class NL_4dof(Response):
         self.kth = house.kth
 
         self.data_path = 'data/non-linear/'
-        self.fig_path = 'fig/_non-linear/'
+        self.fig_path = 'fig/'
 
-    def get_model(self):
-        l = np.array([self.l1-self.l2,self.l2])
-        dyield_c = l/40  # shape: floor
-        dyield_w = l/250  # shape: floor
+    def get_model(self,linear=False):
+        if linear:
+            k = self.house.k
+            model = Combined(
+                [[Linear(k[0])],[Linear(k[1])],[Linear(self.kh)],[Linear(self.kth)]]
+            )
+        else:
+            l = np.array([self.l1-self.l2,self.l2])
+            dyield_c = l/40  # shape: floor
+            dyield_w = l/250  # shape: floor
+            alpha_c,alpha_w = self.house.alpha_c,self.house.alpha_w
+            slip_rate_c = self.house.slip_rate_c
+            slip_rate_w = self.house.slip_rate_w
 
-        kc,kw = self.kc,self.kw
-        model = Combined(
-            [[Slip(kc[0][0],kc[0][1],dyield_c[0]),Slip(kw[0][0],self.kw[0][1],dyield_w[0])],
-            [Slip(kc[1][0],kc[1][1],dyield_c[1]),Slip(kw[1][0],self.kw[1][1],dyield_w[1])],
-            [Linear(self.kh)],
-            [Linear(self.kth)]]
-        )
+            kc,kw = self.kc,self.kw
+            model = Combined(
+                [[Slip_Bilinear(kc[0],alpha_c,dyield_c[0],slip_rate_c),Slip_Bilinear(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
+                [Slip_Bilinear(kc[1],alpha_c,dyield_c[1],slip_rate_c),Slip_Bilinear(kw[1],alpha_w,dyield_w[1],slip_rate_w)],
+                [Linear(self.kh)],
+                [Linear(self.kth)]]
+            )
         return model
 
     def dis_to_x(self,dis):
@@ -304,17 +350,18 @@ class NL_4dof(Response):
         dis = [x[0],x[1]-x[0],x[2],x[3]]
         return np.array(dis)
 
-    def save_txt(self,Acc,Vel,Dis,model):
-        np.savetxt(f'{self.data_path}{self.fname}_Acc',Acc)
-        np.savetxt(f'{self.data_path}{self.fname}_Vel',Vel)
-        np.savetxt(f'{self.data_path}{self.fname}_Dis',Dis)
-        np.savetxt(f'{self.data_path}{self.fname}_x',model.X)
-        np.savetxt(f'{self.data_path}{self.fname}_f',model.F)
+    def save_txt(self,Acc,Vel,Dis,model,linear):
+        lnl = '_l' if linear else '_nl'
+        np.savetxt(f'{self.data_path}{self.fname}{lnl}_Acc',Acc)
+        np.savetxt(f'{self.data_path}{self.fname}{lnl}_Vel',Vel)
+        np.savetxt(f'{self.data_path}{self.fname}{lnl}_Dis',Dis)
+        np.savetxt(f'{self.data_path}{self.fname}{lnl}_x',model.X)
+        np.savetxt(f'{self.data_path}{self.fname}{lnl}_f',model.F)
 
-    def different(self):
+    def different(self,linear=False):
         a0,dt = self.acc,self.dt
         n = len(a0)
-        model = self.get_model()
+        model = self.get_model(linear)
 
         dof,_ = self.M.shape
         Acc = np.zeros([dof,n])
@@ -332,18 +379,21 @@ class NL_4dof(Response):
 
             Dis[:,i] = dnext
             R = -np.dot(self.F,a0[i])
-            x = self.dis_to_x(Dis[:,i])
-            f = model.sheer(x)
-            F = self.x_to_dis(f)
-            model.push()
+            if linear:
+                F = np.dot(self.K,Dis[:,i])
+            else:
+                x = self.dis_to_x(Dis[:,i])
+                f = model.sheer(x)
+                F = self.x_to_dis(f)
+                model.push()
 
             Rhat = R - F + np.dot(Mbydt2,2*Dis[:,i]-Dis[:,i-1]) + np.dot(Cby2dt,Dis[:,i-1])
             dnext = np.dot(K_hat_inv,Rhat)
             Acc[:,i] = (Dis[:,i-1]-2*Dis[:,i]+dnext)/dt**2
             Vel[:,i] = (-Dis[:,i-1]+dnext)/2/dt
-        self.save_txt(Acc,Vel,Dis,model)
+        self.save_txt(Acc,Vel,Dis,model,linear)
 
-    def newmark(self):
+    def newmark(self,linear=False):
         def newmark(a1,a2,v,d,dt,beta):
             v_next = v + dt*(a1+a2)/2
             d_next = d + dt*v + ((0.5-beta)*a1+beta*a2)*dt**2
@@ -353,7 +403,7 @@ class NL_4dof(Response):
         a0,dt = self.acc,self.dt
         n = len(a0)
 
-        model = self.get_model()
+        model = self.get_model(linear)
 
         beta = 1/6
         dof,_ = self.M.shape
@@ -399,7 +449,7 @@ class NL_4dof(Response):
                 Acc[:,i+1] = A4
                 Vel[:,i+1] = V3
                 Dis[:,i+1] = D3
-        self.save_txt(Acc,Vel,Dis,model)
+        self.save_txt(Acc,Vel,Dis,model,linear)
 
     def get_names(self):
         floor_name = ['2nd floor','1st floor','Sway','Rocking']
@@ -409,13 +459,14 @@ class NL_4dof(Response):
         models = ['2f column','2f wall','1f column','1f wall','Sway','Rocking']
         return floor_name,floor_file,unit_list,type_tag,models
 
-    def plot(self):
+    def plot(self,linear=False):
         floor_name,floor_file,unit_list,type_tag,models = self.get_names()
+        lnl = '_l' if linear else '_nl'
 
         # Acc.shape: dof,nstep
-        Dis = np.loadtxt(f'{self.data_path}{self.fname}_Dis')
-        Vel = np.loadtxt(f'{self.data_path}{self.fname}_Vel')
-        Acc = np.loadtxt(f'{self.data_path}{self.fname}_Acc')
+        Dis = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_Dis')
+        Vel = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_Vel')
+        Acc = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_Acc')
 
         angle = self.to_angle(Dis)
         Dis = self.to_relative(Dis)
@@ -442,7 +493,7 @@ class NL_4dof(Response):
                 ymax = np.abs(u[i]).max() * 1.05
                 ax.set_ylim(-ymax,ymax)
                 # ax.legend()
-                fig.savefig(f'{self.fig_path}wave/{self.fname}_{tt}_{fname}.png')
+                fig.savefig(f'{self.fig_path}wave/{self.fname}{lnl}_{tt}_{fname}.png')
                 plt.close(fig)
 
         # =============== Angle ===============
@@ -460,24 +511,25 @@ class NL_4dof(Response):
         ax.set_xlim(self.time[tstart],self.time[tend])
         ymax = np.abs(angle).max() * 1.05
         ax.set_ylim(-ymax,ymax)
-        fig.savefig(f'{self.fig_path}wave/{self.fname}_Angle.png')
+        fig.savefig(f'{self.fig_path}wave/{self.fname}{lnl}_Angle.png')
         plt.close(fig)
 
         # =============== Constitution ===============
-        x = np.loadtxt(f'{self.data_path}{self.fname}_x')
-        f = np.loadtxt(f'{self.data_path}{self.fname}_f')
-        for i,m in enumerate(models):
-            fig,ax = plt.subplots()
-            # ax.set_title('elongation - force')
-            ax.set_xlabel('Elongation of spring [m]')
-            ax.set_ylabel('Reaction force [N]', labelpad=6.0)
-            ax.plot(x[i],f[i],label=m)
-            ax.legend(bbox_to_anchor=(1,0),loc='lower right',borderaxespad=0)
-            # ax.set_xlim(self.time[tstart],self.time[tend])
-            # ymax = np.abs(angle).max() * 1.05
-            # ax.set_ylim(-ymax,ymax)
-            fig.savefig(f'{self.fig_path}constitution/{self.fname}_{i+1}.png')
-            plt.close(fig)
+        if not linear:
+            x = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_x')
+            f = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_f')
+            for i,m in enumerate(models):
+                fig,ax = plt.subplots()
+                # ax.set_title('elongation - force')
+                ax.set_xlabel('Elongation of spring [m]')
+                ax.set_ylabel('Reaction force [N]', labelpad=6.0)
+                ax.plot(x[i],f[i],label=m)
+                ax.legend(bbox_to_anchor=(1,0),loc='lower right',borderaxespad=0)
+                # ax.set_xlim(self.time[tstart],self.time[tend])
+                # ymax = np.abs(angle).max() * 1.05
+                # ax.set_ylim(-ymax,ymax)
+                fig.savefig(f'{self.fig_path}constitution/{self.fname}_{i+1}.png')
+                plt.close(fig)
 
 
 class NL_2dof(NL_4dof):
@@ -488,16 +540,25 @@ class NL_2dof(NL_4dof):
         self.K = self.K[0:2,0:2]
         self.F = self.F[0:2]
 
-    def get_model(self):
-        l = np.array([self.l1-self.l2,self.l2])
-        dyield_c = l/40  # shape: floor
-        dyield_w = l/250  # shape: floor
+    def get_model(self,linear=False):
+        if linear:
+            k = self.house.k
+            model = Combined(
+                [[Linear(k[0])],[Linear(k[1])]]
+            )
+        else:
+            l = np.array([self.l1-self.l2,self.l2])
+            dyield_c = l/40  # shape: floor
+            dyield_w = l/250  # shape: floor
+            alpha_c,alpha_w = self.house.alpha_c,self.house.alpha_w
+            slip_rate_c = self.house.slip_rate_c
+            slip_rate_w = self.house.slip_rate_w
 
-        kc,kw = self.kc,self.kw
-        model = Combined(
-            [[Slip(kc[0][0],kc[0][1],dyield_c[0]),Slip(kw[0][0],self.kw[0][1],dyield_w[0])],
-            [Slip(kc[1][0],kc[1][1],dyield_c[1]),Slip(kw[1][0],self.kw[1][1],dyield_w[1])]]
-        )
+            kc,kw = self.kc,self.kw
+            model = Combined(
+                [[Slip_Bilinear(kc[0],alpha_c,dyield_c[0],slip_rate_c),Slip_Bilinear(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
+                [Slip_Bilinear(kc[1],alpha_c,dyield_c[1],slip_rate_c),Slip_Bilinear(kw[1],alpha_w,dyield_w[1],slip_rate_w)]]
+            )
         return model
 
     def dis_to_x(self, dis):
@@ -528,4 +589,5 @@ class NL_2dof(NL_4dof):
         floor_file = ['2nd','1st']
         unit_list = ['[m]','[m/sec]','[m/sec^2]']
         type_tag = ['Displacement','Velocity','Acceleration']
-        return floor_name,floor_file,unit_list,type_tag
+        models = ['2f column','2f wall','1f column','1f wall']
+        return floor_name,floor_file,unit_list,type_tag,models

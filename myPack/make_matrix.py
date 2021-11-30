@@ -34,6 +34,9 @@ class House():
         beta = 2*h1/omega.sum()
         alpha = beta*omega.prod()
         C1 = alpha*m + beta*k
+        print(m)
+        print(k)
+        print(C1)
 
         # print('omega of top:',omega[0])
         # print('period of top:',2*np.pi/omega[0])
@@ -106,9 +109,11 @@ class House():
         return y
 
 class House_NL(House):
-    def __init__(self,m1,m2,mf,If,kc,kw,kh,kth,l1,l2,h1=0.02,h2=0.2,cf=None,cth=None,clough_alpha_c=0.05,clough_alpha_w=0.05):
+    def __init__(self,m1,m2,mf,If,kc,kw,kh,kth,l1,l2,h1=0.02,h2=0.2,cf=None,cth=None,alpha_c=0.05,alpha_w=0.05,slip_rate_c=0.85,slip_rate_w=0.85):
         k1 = kc[0]+kw[0]
         k2 = kc[1]+kw[1]
-        self.kc = np.array([[k,k*clough_alpha_c] for k in kc])
-        self.kw = np.array([[k,k*clough_alpha_w] for k in kw])
+        self.alpha_c,self.alpha_w = alpha_c,alpha_w
+        self.slip_rate_c,self.slip_rate_w = slip_rate_c,slip_rate_w
+        self.kc,self.kw = kc,kw
+        self.k = np.array([k1,k2])
         super().__init__(m1,m2,mf,If,k1,k2,kh,kth,l1,l2,h1=h1,h2=h2,cf=cf,cth=cth)

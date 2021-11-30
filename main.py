@@ -31,7 +31,7 @@ m2 = 6439.62  # 1F weight [kg]
 mf = 29198.65  # base weight [kg]
 Ifx = 570.870/Area_f*mf  # moment of inertia [kg*m2]
 Ify = 343.980/Area_f*mf
-k1x = 6079.97e3  # [N/m]
+k1x = 6079.81e3  # [N/m]
 k2x = 6439.10e3
 k1y = 6219.83e3
 k2y = 6353.06e3
@@ -40,7 +40,7 @@ kh = 2.83e9  # [N/m]
 kth = 5.75e10  # [N*m/rad]
 cf = 4.38e6  # [N/m]
 cth = 3.69e7
-house_x = House(m1,m2,mf,Ifx,k1x,k2x,kh,kth,l1,l2,cf=cf,cth=cth)
+house_x = House(m1,m2,mf,Ifx,k1x,k2x,kh,kth,l1,l2,cf=cf,cth=cth,h1=0.02)
 house_y = House(m1,m2,mf,Ify,k1y,k2y,kh,kth,l1,l2,cf=cf,cth=cth)
 
 np.savetxt('data/MCK/mx_mat.txt',house_x.M)
@@ -52,9 +52,9 @@ np.savetxt('data/MCK/ky_mat.txt',house_y.K)
 
 
 # INPUT DATA --------------------------------------
-data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori')
-data.Process()
-data.Output()
+data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
+# data.Process()
+# data.Output()
 # data.ResponseSpectrum()
 
 

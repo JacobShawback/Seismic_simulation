@@ -68,7 +68,7 @@ class Data(object):
             self.N0 = self.N * div
 
     def Output(self):
-        N = len(self.accAfter)
+        N = len(self.acc0)
         freqList = fftfreq(N, d=self.dt)
         plt.figure()
         plt.plot(np.linspace(0, N * self.dt, N), self.accAfter)
