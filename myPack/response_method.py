@@ -1,9 +1,16 @@
+from enum import Enum,auto
 import numpy as np
+from numpy.core.function_base import linspace
 import numpy.linalg as LA
 from scipy.fftpack import fft, ifft, fftfreq
 import matplotlib.pyplot as plt
 from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined
 from myPack.make_matrix import House,House_NL
+
+class CType(Enum):
+    LINEAR = auto()
+    SLIP = auto()
+    SLIP_BILINEAR = auto()
 
 # Linear
 class Response:
@@ -319,8 +326,8 @@ class NL_4dof(Response):
         self.data_path = 'data/non-linear/'
         self.fig_path = 'fig/'
 
-    def get_model(self,linear=False):
-        if linear:
+    def get_model(self,cmodel):
+        if cmodel == Linear:
             k = self.house.k
             model = Combined(
                 [[Linear(k[0])],[Linear(k[1])],[Linear(self.kh)],[Linear(self.kth)]]
@@ -334,12 +341,20 @@ class NL_4dof(Response):
             slip_rate_w = self.house.slip_rate_w
 
             kc,kw = self.kc,self.kw
-            model = Combined(
-                [[Slip_Bilinear(kc[0],alpha_c,dyield_c[0],slip_rate_c),Slip_Bilinear(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
-                [Slip_Bilinear(kc[1],alpha_c,dyield_c[1],slip_rate_c),Slip_Bilinear(kw[1],alpha_w,dyield_w[1],slip_rate_w)],
-                [Linear(self.kh)],
-                [Linear(self.kth)]]
-            )
+            if cmodel == Slip:
+                model = Combined(
+                    [[cmodel(kc[0],kc[0]*alpha_c,dyield_c[0]),cmodel(kw[0],kw[0]*alpha_w,dyield_w[0])],
+                    [cmodel(kc[1],kc[1]*alpha_c,dyield_c[1]),cmodel(kw[1],kw[1]*alpha_w,dyield_w[1])],
+                    [Linear(self.kh)],
+                    [Linear(self.kth)]]
+                )
+            else:
+                model = Combined(
+                    [[cmodel(kc[0],alpha_c,dyield_c[0],slip_rate_c),cmodel(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
+                    [cmodel(kc[1],alpha_c,dyield_c[1],slip_rate_c),cmodel(kw[1],alpha_w,dyield_w[1],slip_rate_w)],
+                    [Linear(self.kh)],
+                    [Linear(self.kth)]]
+                )
         return model
 
     def dis_to_x(self,dis):
@@ -350,18 +365,18 @@ class NL_4dof(Response):
         dis = [x[0],x[1]-x[0],x[2],x[3]]
         return np.array(dis)
 
-    def save_txt(self,Acc,Vel,Dis,model,linear):
-        lnl = '_l' if linear else '_nl'
+    def save_txt(self,Acc,Vel,Dis,model,cmodel):
+        lnl = '_l' if cmodel==Linear else '_s' if cmodel==Slip else '_sb'
         np.savetxt(f'{self.data_path}{self.fname}{lnl}_Acc',Acc)
         np.savetxt(f'{self.data_path}{self.fname}{lnl}_Vel',Vel)
         np.savetxt(f'{self.data_path}{self.fname}{lnl}_Dis',Dis)
         np.savetxt(f'{self.data_path}{self.fname}{lnl}_x',model.X)
         np.savetxt(f'{self.data_path}{self.fname}{lnl}_f',model.F)
 
-    def different(self,linear=False):
+    def different(self,cmodel):
         a0,dt = self.acc,self.dt
         n = len(a0)
-        model = self.get_model(linear)
+        model = self.get_model(cmodel)
 
         dof,_ = self.M.shape
         Acc = np.zeros([dof,n])
@@ -379,7 +394,7 @@ class NL_4dof(Response):
 
             Dis[:,i] = dnext
             R = -np.dot(self.F,a0[i])
-            if linear:
+            if cmodel == Linear:
                 F = np.dot(self.K,Dis[:,i])
             else:
                 x = self.dis_to_x(Dis[:,i])
@@ -391,9 +406,9 @@ class NL_4dof(Response):
             dnext = np.dot(K_hat_inv,Rhat)
             Acc[:,i] = (Dis[:,i-1]-2*Dis[:,i]+dnext)/dt**2
             Vel[:,i] = (-Dis[:,i-1]+dnext)/2/dt
-        self.save_txt(Acc,Vel,Dis,model,linear)
+        self.save_txt(Acc,Vel,Dis,model,cmodel)
 
-    def newmark(self,linear=False):
+    def newmark(self,cmodel):
         def newmark(a1,a2,v,d,dt,beta):
             v_next = v + dt*(a1+a2)/2
             d_next = d + dt*v + ((0.5-beta)*a1+beta*a2)*dt**2
@@ -403,7 +418,7 @@ class NL_4dof(Response):
         a0,dt = self.acc,self.dt
         n = len(a0)
 
-        model = self.get_model(linear)
+        model = self.get_model(cmodel)
 
         beta = 1/6
         dof,_ = self.M.shape
@@ -449,7 +464,7 @@ class NL_4dof(Response):
                 Acc[:,i+1] = A4
                 Vel[:,i+1] = V3
                 Dis[:,i+1] = D3
-        self.save_txt(Acc,Vel,Dis,model,linear)
+        self.save_txt(Acc,Vel,Dis,model,cmodel)
 
     def get_names(self):
         floor_name = ['2nd floor','1st floor','Sway','Rocking']
@@ -459,9 +474,9 @@ class NL_4dof(Response):
         models = ['2f column','2f wall','1f column','1f wall','Sway','Rocking']
         return floor_name,floor_file,unit_list,type_tag,models
 
-    def plot(self,linear=False):
+    def plot(self,cmodel):
         floor_name,floor_file,unit_list,type_tag,models = self.get_names()
-        lnl = '_l' if linear else '_nl'
+        lnl = '_l' if cmodel==Linear else '_s' if cmodel==Slip else '_sb'
 
         # Acc.shape: dof,nstep
         Dis = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_Dis')
@@ -515,7 +530,7 @@ class NL_4dof(Response):
         plt.close(fig)
 
         # =============== Constitution ===============
-        if not linear:
+        if cmodel != Linear:
             x = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_x')
             f = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_f')
             for i,m in enumerate(models):
@@ -528,7 +543,7 @@ class NL_4dof(Response):
                 # ax.set_xlim(self.time[tstart],self.time[tend])
                 # ymax = np.abs(angle).max() * 1.05
                 # ax.set_ylim(-ymax,ymax)
-                fig.savefig(f'{self.fig_path}constitution/{self.fname}_{i+1}.png')
+                fig.savefig(f'{self.fig_path}constitution/{self.fname}{lnl}_{i+1}.png')
                 plt.close(fig)
 
 
@@ -540,11 +555,11 @@ class NL_2dof(NL_4dof):
         self.K = self.K[0:2,0:2]
         self.F = self.F[0:2]
 
-    def get_model(self,linear=False):
-        if linear:
+    def get_model(self,cmodel):
+        if cmodel == Linear:
             k = self.house.k
             model = Combined(
-                [[Linear(k[0])],[Linear(k[1])]]
+                [[Linear(k[0])],[Linear(k[1])],[Linear(self.kh)],[Linear(self.kth)]]
             )
         else:
             l = np.array([self.l1-self.l2,self.l2])
@@ -555,10 +570,20 @@ class NL_2dof(NL_4dof):
             slip_rate_w = self.house.slip_rate_w
 
             kc,kw = self.kc,self.kw
-            model = Combined(
-                [[Slip_Bilinear(kc[0],alpha_c,dyield_c[0],slip_rate_c),Slip_Bilinear(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
-                [Slip_Bilinear(kc[1],alpha_c,dyield_c[1],slip_rate_c),Slip_Bilinear(kw[1],alpha_w,dyield_w[1],slip_rate_w)]]
-            )
+            if cmodel == Slip:
+                model = Combined(
+                    [[cmodel(kc[0],kc[0]*alpha_c,dyield_c[0]),cmodel(kw[0],kw[0]*alpha_w,dyield_w[0])],
+                    [cmodel(kc[1],kc[1]*alpha_c,dyield_c[1]),cmodel(kw[1],kw[1]*alpha_w,dyield_w[1])],
+                    [Linear(self.kh)],
+                    [Linear(self.kth)]]
+                )
+            else:
+                model = Combined(
+                    [[cmodel(kc[0],alpha_c,dyield_c[0],slip_rate_c),cmodel(kw[0],alpha_w,dyield_w[0],slip_rate_w)],
+                    [cmodel(kc[1],alpha_c,dyield_c[1],slip_rate_c),cmodel(kw[1],alpha_w,dyield_w[1],slip_rate_w)],
+                    [Linear(self.kh)],
+                    [Linear(self.kth)]]
+                )
         return model
 
     def dis_to_x(self, dis):
