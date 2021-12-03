@@ -30,8 +30,8 @@ class Data(object):
 
     def Process(self):
         n = 5
-        while 2**(n-3)<self.N:
-        # while 2**(n-1)<self.N:
+        # while 2**(n-3)<self.N:
+        while 2**(n-1)<self.N:
             n += 1
         acc0 = self.acc
         zeros = np.zeros(2**(n-1)-int(self.N/2))
@@ -49,6 +49,12 @@ class Data(object):
         # self.fftAccAfter[np.abs(self.freqList) > fn] = 0  # ナイキスト周波数以上を落とす
         accAfter = np.real(ifft(self.fftAccAfter))
         self.acc0 = accAfter
+        # b = np.sin(np.linspace(0,self.dt0*len(self.acc)*2*np.pi*2,len(self.acc)))*6
+        # a = np.ones_like(self.acc)
+        # nnn = int(len(self.acc)/2)
+        # a[:nnn] = np.linspace(0,1,nnn)
+        # b *= a
+        # self.acc0 = np.concatenate([zeros,b,zeros])
 
     def Interpolation(self,div=10,to_acc0=True):
         self.dtInterpolated = self.dt / div
