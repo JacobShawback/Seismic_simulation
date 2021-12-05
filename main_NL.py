@@ -5,7 +5,7 @@ import numpy as np
 from time import time
 from myPack.output_format import Format
 from myPack.response_method import NL_4dof,NL_2dof
-from myPack.constitution import Linear,Slip,Slip_Bilinear
+from myPack.constitution import Linear,Slip,Slip_Bilinear, Slip_Bilinear2
 Format.params()
 
 tstart = time()
@@ -26,7 +26,6 @@ mf = 29198.65  # base weight [kg]
 Ifx = 570.870/Area_f*mf  # moment of inertia [kg*m2]
 Ify = 343.980/Area_f*mf
 kcx = 4420.6e3,3870.72e3  # [N/m]
-# kcx = 3900e3,4400e3
 kwx = 1659.21e3,2568.38e3
 kcy = 4420.76e3,3870.72e3
 kwy = 1659.21e3,2482.34e3
@@ -43,7 +42,7 @@ house_x = House_NL(**args,If=Ifx,kc=kcx,kw=kwx)
 
 
 # # FREQ ANALYSIS -------------------------------------
-cmodel = Slip
+cmodel = Slip_Bilinear2
 # modelx = NL_4dof(house_x,data,'x')
 modelx = NL_4dof(house_x,data,'x')
 # modelx = NL_2dof(house_x,data,'2dof')

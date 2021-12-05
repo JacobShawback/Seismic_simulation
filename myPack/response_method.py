@@ -4,7 +4,7 @@ from numpy.core.function_base import linspace
 import numpy.linalg as LA
 from scipy.fftpack import fft, ifft, fftfreq
 import matplotlib.pyplot as plt
-from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined
+from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined, Slip_Bilinear2
 from myPack.make_matrix import House,House_NL
 
 class CType(Enum):
@@ -331,6 +331,15 @@ class NL_4dof(Response):
             k = self.house.k
             model = Combined(
                 [[Linear(k[0])],[Linear(k[1])],[Linear(self.kh)],[Linear(self.kth)]]
+            )
+        elif cmodel == Slip_Bilinear2:
+            l = np.array([self.l1-self.l2,self.l2])
+            kc,kw = self.kc,self.kw
+            model = Combined(
+                [[Linear(kc[0]),Slip_Bilinear2(kw[0],l[0])],
+                [Linear(kc[1]),Slip_Bilinear2(kw[1],l[1])],
+                [Linear(self.kh)],
+                [Linear(self.kth)]]
             )
         else:
             l = np.array([self.l1-self.l2,self.l2])
