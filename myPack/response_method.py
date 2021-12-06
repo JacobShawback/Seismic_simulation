@@ -4,13 +4,32 @@ from numpy.core.function_base import linspace
 import numpy.linalg as LA
 from scipy.fftpack import fft, ifft, fftfreq
 import matplotlib.pyplot as plt
-from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined, Slip_Bilinear2
+import matplotlib.animation as animation
+from myPack.constitution import Slip,Linear,Slip_Bilinear,Combined, Slip_Bilinear2, Slip_Bilinear3
 from myPack.make_matrix import House,House_NL
 
 class CType(Enum):
     LINEAR = auto()
     SLIP = auto()
     SLIP_BILINEAR = auto()
+
+
+def make_gif(x,y,fig,ax,path,total_time=50):
+    npage = int(total_time*5)
+    ims = []
+    ni = int(np.floor(len(x)/npage))
+    for i in range(npage):
+        start = (i-3)*ni if i-3>0 else 0
+        end = i*ni
+        im = None
+        im = ax.plot(x[:end],y[:end],color='black',lw=0.3)
+        im += ax.plot(x[start:end],y[start:end],color='red',lw=0.6)
+        im += ax.plot(x[end-1],y[end-1],marker='.',markersize=5,color='red')
+        ims.append(im)
+    interval = total_time/npage*1000
+    ani = animation.ArtistAnimation(fig,ims,interval=interval)
+    ani.save(path)
+
 
 # Linear
 class Response:
@@ -317,6 +336,8 @@ class Response:
 class NL_4dof(Response):
     def __init__(self, house:House_NL, wave, fname='4dof'):
         super().__init__(house, wave, fname=fname)
+        self.C_linear = house.C
+        self.C_nonlinear = house.Cnl
         # c,w: column, wall
         self.kc = house.kc  # kc[floor][2 for bilinear]
         self.kw = house.kw
@@ -336,8 +357,8 @@ class NL_4dof(Response):
             l = np.array([self.l1-self.l2,self.l2])
             kc,kw = self.kc,self.kw
             model = Combined(
-                [[Linear(kc[0]),Slip_Bilinear2(kw[0],l[0])],
-                [Linear(kc[1]),Slip_Bilinear2(kw[1],l[1])],
+                [[Slip_Bilinear3(kc[0],l[0]),Slip_Bilinear2(kw[0],l[0])],
+                [Slip_Bilinear3(kc[1],l[1]),Slip_Bilinear2(kw[1],l[1])],
                 [Linear(self.kh)],
                 [Linear(self.kth)]]
             )
@@ -387,16 +408,19 @@ class NL_4dof(Response):
         n = len(a0)
         model = self.get_model(cmodel)
 
-        dof,_ = self.M.shape
+        C = self.C_linear if cmodel==Linear else self.C_nonlinear
+        M,K = self.M,self.K
+
+        dof,_ = M.shape
         Acc = np.zeros([dof,n])
         Vel = np.zeros([dof,n])
         Dis = np.zeros([dof,n])
 
-        Mbydt2,Cby2dt = self.M/dt**2,self.C/2/dt
+        Mbydt2,Cby2dt = M/dt**2,C/2/dt
         K_hat_inv = LA.inv(Mbydt2+Cby2dt)
         dnext = np.zeros(dof)
 
-        k = int(n/20)
+        k = int(n/5)
         for i in range(1,n-1):
             if i % k == 0:
                 print(f'\t{int(100*i/n)}%')
@@ -404,7 +428,7 @@ class NL_4dof(Response):
             Dis[:,i] = dnext
             R = -np.dot(self.F,a0[i])
             if cmodel == Linear:
-                F = np.dot(self.K,Dis[:,i])
+                F = np.dot(K,Dis[:,i])
             else:
                 x = self.dis_to_x(Dis[:,i])
                 f = model.sheer(x)
@@ -426,8 +450,9 @@ class NL_4dof(Response):
         small = 1e-8
         a0,dt = self.acc,self.dt
         n = len(a0)
-
         model = self.get_model(cmodel)
+        C = self.C_linear if cmodel==Linear else self.C_nonlinear
+        M,K = self.M,self.K
 
         beta = 1/6
         dof,_ = self.M.shape
@@ -449,7 +474,7 @@ class NL_4dof(Response):
             # Kx： 運動方程式における剛性の項（ベクトル）
             Kx = self.x_to_dis(kx)
             Fa0 = np.dot(self.F,a0[i+1])
-            A2 = np.dot(LA.inv(self.M),np.dot(-self.C,V1)-Kx-Fa0)
+            A2 = np.dot(LA.inv(M),np.dot(-C,V1)-Kx-Fa0)
             delta = np.abs(A2-A1)
             if (delta<small).sum() == dof:
                 model.push()
@@ -466,7 +491,7 @@ class NL_4dof(Response):
                     kx = model.sheer(x)
                     # Kx： 運動方程式における剛性の項（ベクトル）
                     Kx = self.x_to_dis(kx)
-                    A4 = np.dot(LA.inv(self.M),np.dot(-self.C,V3)-Kx-Fa0)
+                    A4 = np.dot(LA.inv(M),np.dot(-C,V3)-Kx-Fa0)
                     delta = np.abs(A4-A3)
                     A3 = A4 + 0.99*(A3-A4)
                 model.push()
@@ -483,8 +508,7 @@ class NL_4dof(Response):
         models = ['2f column','2f wall','1f column','1f wall','Sway','Rocking']
         return floor_name,floor_file,unit_list,type_tag,models
 
-    def plot(self,cmodel):
-        floor_name,floor_file,unit_list,type_tag,models = self.get_names()
+    def get_u_angle(self,cmodel):
         lnl = '_l' if cmodel==Linear else '_s' if cmodel==Slip else '_sb'
 
         # Acc.shape: dof,nstep
@@ -496,28 +520,52 @@ class NL_4dof(Response):
         Dis = self.to_relative(Dis)
         Vel = self.to_relative(Vel)
         Acc = self.to_abs(Acc)
+        u = Dis,Vel,Acc
+        return {'u':u,'angle':angle}
 
-        u_list = Dis,Vel,Acc
+    def plot(self,cmodel,title='',second=None,gif=False):
+        floor_name,floor_file,unit_list,type_tag,models = self.get_names()
+        lnl = '_l' if cmodel==Linear else '_s' if cmodel==Slip else '_sb'
+
+        u_angle = self.get_u_angle(cmodel)
+        u_list,angle = u_angle['u'],u_angle['angle']
+        Dis,Vel,Acc = u_list
+        if second is not None:
+            u_list2,angle2 = second['u'],second['angle']
+            tag1,tag2 = second['tag1'],second['tag2']
+        else:
+            tag1,tag2 = '',''
 
         Nt = len(self.acc)
         N0 = self.wave.N0
-        tstart,tend = int((Nt-1.1*N0)/2),int((Nt+1.5*N0)/2)
+        tstart,tend = int((Nt-1.1*N0)/2),int((Nt+1*N0)/2)
+        ymergin = 1.1
         for i,(name,fname) in enumerate(zip(floor_name,floor_file)):
             for j,(tt,unit) in enumerate(zip(type_tag,unit_list)):
                 u = u_list[j]
+                if second is not None:
+                    u2 = u_list2[j]
 
                 # ================ Wave ================
                 fig,ax = plt.subplots()
-                ax.set_title(name)
+                ax.set_title(title+name)
                 ax.set_xlabel('Time [sec]')
                 ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
-                ax.plot([self.time[tstart],self.time[tend]],[0,0],color='black')
-                ax.plot(self.time[tstart:tend],u[i,tstart:tend]) #label
+                umax = 'max:{:.3g}'.format(np.abs(u[i]).max())
+                ax.plot(self.time[tstart:tend],u[i,tstart:tend],label=tag1+umax) #label
+                ymax = np.abs(u[i]).max() * ymergin
+                if second is not None:
+                    umax2 = 'max:{:.3g}'.format(np.abs(u2[i]).max())
+                    ax.plot(self.time[tstart:tend],u2[i,tstart:tend],label=tag2+umax2) #label
+                    ymax2 = np.abs(u[i]).max() * ymergin
+                    ymax = max(ymax,ymax2)
                 ax.set_xlim(self.time[tstart],self.time[tend])
-                ymax = np.abs(u[i]).max() * 1.05
                 ax.set_ylim(-ymax,ymax)
-                # ax.legend()
-                fig.savefig(f'{self.fig_path}wave/{self.fname}{lnl}_{tt}_{fname}.png')
+                ax.legend()
+                if second is not None:
+                    fig.savefig(f'{self.fig_path}wave/compare{lnl}_{tt}_{fname}.png')
+                else:
+                    fig.savefig(f'{self.fig_path}wave/{self.fname}{lnl}_{tt}_{fname}.png')
                 plt.close(fig)
 
         # =============== Angle ===============
@@ -526,34 +574,66 @@ class NL_4dof(Response):
         ax.set_title('Angle')
         ax.set_xlabel('Time [sec]')
         ax.set_ylabel('Angle', labelpad=6.0)
-        label = [floor[i]+', max:{:.3g}'.format(np.abs(angle[i]).max()) for i in range(2)]
+        label = [floor[i]+', max: {:.3g}'.format(np.abs(angle[i]).max()) for i in range(2)]
         ax.plot(self.time[tstart:tend],angle[0,tstart:tend],label=label[0])
         ax.plot(self.time[tstart:tend],angle[1,tstart:tend],label=label[1])
-        ax.plot([self.time[tstart],self.time[tend]],[1/120,1/120],color='red')
-        ax.plot([self.time[tstart],self.time[tend]],[-1/120,-1/120],color='red')
+        ax.plot([self.time[tstart],self.time[tend]],[1/120,1/120],color='black')
+        ax.plot([self.time[tstart],self.time[tend]],[-1/120,-1/120],color='black')
+        ax.plot([self.time[tstart],self.time[tend]],[1/40,1/40],color='red')
+        ax.plot([self.time[tstart],self.time[tend]],[-1/40,-1/40],color='red')
         ax.legend()
         ax.set_xlim(self.time[tstart],self.time[tend])
-        ymax = np.abs(angle).max() * 1.05
+        ymax = np.abs(angle).max() * ymergin
+        ymax = max(ymax,1/40*ymergin)
         ax.set_ylim(-ymax,ymax)
         fig.savefig(f'{self.fig_path}wave/{self.fname}{lnl}_Angle.png')
         plt.close(fig)
 
+        # =============== Mode ================
+        tmax = np.argmax(np.abs(angle[0]))
+        fig,ax = plt.subplots(figsize=[2,3])
+        mode = Dis[:3,tmax]
+        xmax = np.abs(mode).max() * ymergin
+        ax.set_xlim(-xmax,xmax)
+        ax.set_ylim(2.2,-0.2)
+        y_tics = [0,1,2]
+        ax.plot(mode,y_tics,lw=1)
+        plt.yticks(y_tics,[r'$x_1$',r'$x_2$',r'$y$'])
+        fig.savefig(f'{self.fig_path}{self.fname}{lnl}_mode.png')
+
         # =============== Constitution ===============
+        gstart,gend = int((Nt-N0)/2),int((Nt+0*N0)/2)
+        gtime = self.time[gend]-self.time[gstart]
         if cmodel != Linear:
             x = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_x')
             f = np.loadtxt(f'{self.data_path}{self.fname}{lnl}_f')
+
+            if gif:
+                fig,ax = plt.subplots(figsize=(5,1))
+                # ax.set_title('Input acc')
+                ymax = np.abs(self.acc).max()*ymergin
+                ax.set_ylim(-ymax,ymax)
+                ax.set_ylabel('[N/sec^2]')
+                fname = f'{self.fig_path}constitution/acc.gif'
+                make_gif(self.time[gstart:gend],self.acc[gstart:gend],fig,ax,fname,gtime*2)
             for i,m in enumerate(models):
-                fig,ax = plt.subplots()
+                fig,ax = plt.subplots(figsize=(3,3))
                 # ax.set_title('elongation - force')
                 ax.set_xlabel('Elongation of spring [m]')
                 ax.set_ylabel('Reaction force [N]', labelpad=6.0)
                 ax.plot(x[i],f[i],label=m)
                 ax.legend(bbox_to_anchor=(1,0),loc='lower right',borderaxespad=0)
-                # ax.set_xlim(self.time[tstart],self.time[tend])
-                # ymax = np.abs(angle).max() * 1.05
-                # ax.set_ylim(-ymax,ymax)
-                fig.savefig(f'{self.fig_path}constitution/{self.fname}{lnl}_{i+1}.png')
+                fname = f'{self.fig_path}constitution/{self.fname}{lnl}_{i+1}'
+                fig.savefig(fname+'.png')
                 plt.close(fig)
+                if gif and (i==1 or i==3):
+                    fig,ax = plt.subplots(figsize=(3,3))
+                    ax.set_title(m)
+                    ax.set_xlabel('Elongation of spring [m]')
+                    ax.set_ylabel('Reaction force [N]', labelpad=6.0)
+                    make_gif(x[i][gstart:gend],f[i][gstart:gend],fig,ax,fname+'.gif',gtime*2)
+
+
 
 
 class NL_2dof(NL_4dof):

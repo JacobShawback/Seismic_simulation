@@ -4,11 +4,10 @@ import numpy as np
 import numpy.linalg as LA
 
 class House():
-    def __init__(self,m1,m2,mf,If,k1,k2,kh,kth,l1,l2,h1=0.05,h2=0.2,cf=None,cth=None):
+    def __init__(self,m1,m2,mf,If,k1,k2,kh,kth,l1,l2,hl=0.05,hnl=0.02,h2=0.2,cf=None,cth=None):
         self.m = [m1,m2,mf,If]
         self.k = [k1,k2,kh,kth]
         self.l = [l1,l2]
-        self.h = [h1,h2]
         self.l1,self.l2 = l1,l2
         self.kh,self.kth = kh,kth
         self.dof = 4
@@ -31,7 +30,7 @@ class House():
         period = 2*np.pi/omega
         print('period, 2dof',period)
         eigen_vec = v
-        beta = 2*h1/omega.sum()
+        beta = 2*hl/omega.sum()
         alpha = beta*omega.prod()
         C1 = alpha*m + beta*k
         print(m)
@@ -58,7 +57,14 @@ class House():
             [0,0,C2,0],
             [0,0,0,C3]]
         )
-        # self.C = alpha[0]*M + beta[0]*K
+
+        C1 *= hnl/hl
+        self.Cnl = np.array(
+            [[C1[0,0],C1[0,1],0,0],
+            [C1[1,0],C1[1,1],0,0],
+            [0,0,C2,0],
+            [0,0,0,C3]]
+        )
 
         w,v = LA.eig(np.dot(LA.inv(M),K))
         self.omega = np.sqrt(w)
@@ -109,11 +115,11 @@ class House():
         return y
 
 class House_NL(House):
-    def __init__(self,m1,m2,mf,If,kc,kw,kh,kth,l1,l2,h1=0.02,h2=0.2,cf=None,cth=None,alpha_c=0.05,alpha_w=0.05,slip_rate_c=0.85,slip_rate_w=0.85):
+    def __init__(self,m1,m2,mf,If,kc,kw,kh,kth,l1,l2,hl=0.05,hnl=0.02,h2=0.2,cf=None,cth=None,alpha_c=0.05,alpha_w=0.05,slip_rate_c=0.85,slip_rate_w=0.85):
         k1 = kc[0]+kw[0]
         k2 = kc[1]+kw[1]
         self.alpha_c,self.alpha_w = alpha_c,alpha_w
         self.slip_rate_c,self.slip_rate_w = slip_rate_c,slip_rate_w
         self.kc,self.kw = kc,kw
         self.k = np.array([k1,k2])
-        super().__init__(m1,m2,mf,If,k1,k2,kh,kth,l1,l2,h1=h1,h2=h2,cf=cf,cth=cth)
+        super().__init__(m1,m2,mf,If,k1,k2,kh,kth,l1,l2,hl=hl,hnl=hnl,h2=h2,cf=cf,cth=cth)

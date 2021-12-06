@@ -27,8 +27,8 @@ class Format:
         plt.rcParams["legend.borderaxespad"] = 0.  # 凡例の端とグラフの端を合わせる
         plt.rcParams['figure.dpi'] = 300
         plt.rcParams['figure.figsize'] = (4.8, 3)  # figure size in inch, 横×縦
-        plt.rcParams['figure.subplot.bottom'] = 0.15
-        plt.rcParams['figure.subplot.left'] = 0.18
+        plt.rcParams['figure.subplot.bottom'] = 0.2
+        plt.rcParams['figure.subplot.left'] = 0.22
         # plt.rcParams['font.family'] ='sans-serif'#使用するフォント
         # x軸の目盛線が内向き('in')か外向き('out')か双方向か('inout')
         plt.rcParams['xtick.direction'] = 'in'

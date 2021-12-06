@@ -468,6 +468,23 @@ class Slip_Bilinear2(Slip_Bilinear):
         self.next_f,self.next_f = 0,0
 
 
+class Slip_Bilinear3(Slip_Bilinear):
+    def __init__(self,k,h):
+        d1 = 0.5e-2*h
+        d2 = 1.5e-2*h
+        d3 = h
+        k1,k3 = k,0.14*k
+        kb1 = k3
+        kb2 = 0.4*k3
+        ks1 = k1-kb1
+        ks2 = k3-kb2
+        ks3 = 0
+
+        self.x,self.f = [0,0],[0,0]
+        self.slip = Slip2(ks1,ks2,ks3,d1,d3)
+        self.bilinear = Bilinear(kb1,kb2,d2)
+        self.next_f,self.next_f = 0,0
+
 
 class Combined:
     def __init__(self,model):
