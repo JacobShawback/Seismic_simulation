@@ -77,7 +77,7 @@ class Data(object):
         N = len(self.acc0)
         freqList = fftfreq(N, d=self.dt)
         plt.figure()
-        plt.plot(np.linspace(0, N * self.dt, N), self.accAfter)
+        plt.plot(np.linspace(0, N * self.dt, N), self.acc0)
         plt.xlabel('Time [sec]')
         plt.ylabel(r'acceleration [cm/sec^2]')
         # plt.grid()
@@ -89,7 +89,7 @@ class Data(object):
 
         plt.figure()
         #plt.plot(range(N), self.acc)
-        plt.plot(np.linspace(0, N * self.dt, N), self.accAfter)
+        plt.plot(np.linspace(0, N * self.dt, N), self.acc0)
         plt.xlabel('Time[sec]')
         plt.ylabel(r'acceleration [cm/sec^2]')
         plt.xlim([140, 190])
@@ -114,7 +114,7 @@ class Data(object):
     def ResponseSpectrum(self):
         m = 1
         h = 0.02
-        acc = self.accAfter
+        acc = self.acc0
         NT = 1000
         N = len(acc)
         dt = 0.01
@@ -153,8 +153,7 @@ class Data(object):
         plt.grid(which='major')
         plt.grid(which='minor', linestyle='dotted')
         plt.savefig(
-            'fig/%s_input_Sa.png' %
-            self.fname,
+            'fig/%s_input_Sa.png'%self.fname,
             bbox_inches="tight",
             pad_inches=0.05)
 

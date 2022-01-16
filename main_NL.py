@@ -11,7 +11,8 @@ Format.params()
 tstart = time()
 
 # INPUT DATA --------------------------------------
-data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
+# data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
+data = Data("mySGF/data/egf_acc.txt",fname='ground/egf',div=2**3)
 # data.Output()
 # data.ResponseSpectrum()
 
@@ -43,17 +44,17 @@ house_y = House_NL(**args,If=Ify,kw=kwy)
 cmodel = Slip_Bilinear2
 # cmodel = Linear
 
-modelx = NL_4dof(house_x,data,'x')
+modelx = NL_4dof(house_x,data,'egf')
 modelx.different(cmodel=cmodel)
 modelx.plot(cmodel=cmodel)
 
-modely = NL_4dof(house_y,data,'y')
-modely.different(cmodel=cmodel)
-modely.plot(cmodel=cmodel,gif=True)
+# modely = NL_4dof(house_y,data,'y')
+# modely.different(cmodel=cmodel)
+# modely.plot(cmodel=cmodel,gif=True)
 
-second = modelx.get_u_angle(cmodel)
-second['tag1'],second['tag2'] = 'NS, ','EW, '
-modely.plot(cmodel=cmodel,second=second)
+# second = modelx.get_u_angle(cmodel)
+# second['tag1'],second['tag2'] = 'NS, ','EW, '
+# modely.plot(cmodel=cmodel,second=second)
 
 elapsed_time = time() - tstart
 print(f'\nTotal time: {elapsed_time:.2f}s')
