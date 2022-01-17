@@ -9,10 +9,10 @@ Format.params()
 tstart = time()
 
 # INPUT DATA --------------------------------------
-data = Data("mySGF/data/acc0.txt",fname='ground/ikoma',div=1)
-data.Output()
-data.ResponseSpectrum()
+before = Data("mySGF/data/acc0.txt",fname='ground/ikoma',div=1)
+before.Output()
+# data.ResponseSpectrum()
 
 data = Data("mySGF/data/egf_acc.txt",fname='ground/egf',div=1)
-data.Output()
+data.Output(before.acc0)
 data.ResponseSpectrum()

@@ -75,5 +75,5 @@ bottom1,bottom2 = bottom(top1,top2,dip,w)
 c = Coordinate(np.stack([top1,top2]),np.stack([bottom1,bottom2]))
 
 pos_obs = np.array([-159913,-36170,0])*1e-3
-pos_hypo0 = np.array([-139738,-21973,14000])*1e-3
+pos_hypo0 = np.array([-162445,-32398,11000])*1e-3
 r0 = norm(pos_obs-pos_hypo0)

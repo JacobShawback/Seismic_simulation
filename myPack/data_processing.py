@@ -73,13 +73,16 @@ class Data(object):
             self.dt0 = self.dtInterpolated
             self.N0 = self.N * div
 
-    def Output(self):
+    def Output(self,other_acc=None):
         N = len(self.acc0)
         freqList = fftfreq(N, d=self.dt)
         plt.figure()
-        plt.plot(np.linspace(0, N * self.dt, N), self.acc0)
+        plt.plot(self.time0, self.acc0)
+        if other_acc is not None:
+            plt.plot(self.time0, other_acc)
         plt.xlabel('Time [sec]')
         plt.ylabel(r'acceleration [cm/sec^2]')
+        plt.xlim(0,self.time[-1])
         # plt.grid()
         plt.savefig(
             'fig/%s_inputacc_processed.png' %
@@ -90,6 +93,8 @@ class Data(object):
         plt.figure()
         #plt.plot(range(N), self.acc)
         plt.plot(np.linspace(0, N * self.dt, N), self.acc0)
+        if other_acc is not None:
+            plt.plot(np.linspace(0, N * self.dt, N), other_acc)
         plt.xlabel('Time[sec]')
         plt.ylabel(r'acceleration [cm/sec^2]')
         plt.xlim([140, 190])
@@ -97,19 +102,52 @@ class Data(object):
         plt.savefig('fig/%s_inputacc_processed_expand.png' %
                     self.fname, bbox_inches="tight", pad_inches=0.05)
 
-        plt.figure()
-        plt.plot(freqList[:int(N / 2 - 1)],
-            np.abs(self.fftAcc[:int(N / 2 - 1)]))
+        plt.figure(figsize=[3,3])
         plt.plot(freqList[:int(N / 2 - 1)],
             np.abs(self.fftAccAfter[:int(N / 2 - 1)]))
+        if other_acc is not None:
+            plt.plot(freqList[:int(N / 2 - 1)],
+                np.abs(fft(other_acc)[:int(N / 2 - 1)]))
         plt.xscale('log')
         plt.yscale('log')
         plt.xlabel('Frequency [Hz]')
         plt.ylabel('Fourier spectrum of acceleration')
-        plt.ylim([10 ** -3, 10 ** 3])
+        plt.xlim([5e-1,5e1])
+        plt.ylim([1e-4,1e4])
         # plt.grid()
-        plt.savefig('fig/%s_inputacc_processed_fourierSpectrum.png' %
+        plt.savefig('fig/%s_inputacc_fourierSpectrum.png' %
                     self.fname, bbox_inches="tight", pad_inches=0.05)
+
+        plt.figure(figsize=[3,3])
+        plt.plot(freqList[:int(N / 2 - 1)],
+            np.abs(self.fftAccAfter[:int(N / 2 - 1)]))
+        if other_acc is not None:
+            plt.plot(freqList[:int(N / 2 - 1)],
+                np.abs(fft(other_acc)[:int(N / 2 - 1)]))
+        plt.xscale('log')
+        plt.yscale('log')
+        plt.xlabel('Frequency [Hz]')
+        plt.ylabel('Fourier spectrum of acceleration')
+        plt.xlim([5e-1,5e1])
+        plt.ylim([1e-4,1e4])
+        # plt.grid()
+        plt.savefig('fig/%s_inputacc_fourierSpectrum.png' %
+                    self.fname, bbox_inches="tight", pad_inches=0.05)
+
+        if other_acc is not None:
+            plt.figure(figsize=[3,3])
+            y1 = np.abs(self.fftAccAfter[:int(N / 2 - 1)])
+            y2 = np.abs(fft(other_acc)[:int(N / 2 - 1)])
+            plt.plot(freqList[:int(N / 2 - 1)],y1/y2)
+            plt.xscale('log')
+            plt.yscale('log')
+            plt.xlabel('Frequency [Hz]')
+            plt.ylabel('Fourier spectrum of acceleration')
+            plt.xlim([5e-1,5e1])
+            # plt.ylim([1e-4,1e4])
+            # plt.grid()
+            plt.savefig('fig/%s_inputacc_processed_fourierSpectrum.png' %
+                        self.fname, bbox_inches="tight", pad_inches=0.05)
 
     def ResponseSpectrum(self):
         m = 1

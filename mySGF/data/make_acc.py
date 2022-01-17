@@ -1,6 +1,6 @@
 import numpy as np
 
-scale_factor = 3920/6182761
+scale_factor = 2000/8388608
 csv_input = np.loadtxt('acc_before.txt')
 acc = csv_input.flatten() * scale_factor
 acc -= acc.mean()

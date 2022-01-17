@@ -1,8 +1,10 @@
+from numpy.lib.twodim_base import fliplr
 from numba import jit,njit
 import numpy as np
 import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as pat
+from scipy.fftpack import fft,ifft,fftfreq
 import parameter,coordinate,EGF
 
 L,W = parameter.Lm,parameter.Wm
@@ -46,7 +48,85 @@ def check2(x1,y1,x2,y2):
     c2 = y2-y1<-l2 or l1<y2-y1
     return c0 and c1 and c2
 
-def search(acc0,dt=0.01,nmax=50):
+def cut(acc,dt=0.01):
+    freq = fftfreq(len(acc),d=dt)
+    fftacc = fft(acc)
+    fs = 0.5
+    fftacc[np.abs(freq)<fs] = 0
+    acc = np.real(ifft(fftacc))
+    return acc
+
+def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
+    n = len(acc0)
+
+    Acc = np.zeros_like(U)
+    Acc[1:-1] = (U[2:]-2*U[1:-1]+U[:-2])/dt**2
+    cutAcc = cut(Acc,dt)
+    np.savetxt('data/egf_acc.txt',np.stack([time0,cutAcc],axis=1))
+
+    u,v,a = np.zeros(n),np.zeros(n),np.zeros(n)
+    u,_,_ = newmark(-acc0,u,v,a,1/6,dt,1,0,0,n)
+
+    fig,ax = plt.subplots()
+    ax.set_xlabel('X [km]')
+    ax.set_ylabel('Y [km]', labelpad=4.0)
+    rec0 = pat.Rectangle((0,0),L,W,fill=False,edgecolor='black')
+    rec1 = pat.Rectangle(xy1,l1,l1,fill=True,edgecolor='black',facecolor='red',alpha=0.3)
+    rec2 = pat.Rectangle(xy2,l2,l2,fill=True,edgecolor='black',facecolor='blue',alpha=0.3)
+    ax.plot() #label
+    ax.add_patch(rec0)
+    ax.add_patch(rec1)
+    ax.add_patch(rec2)
+    ax.plot(xy_hypo[0],xy_hypo[1],marker='*',markersize=15,color='black')
+    ymargin = 0.1*W
+    ax.set_ylim(W+ymargin,-ymargin)
+    fig.savefig('fig.png')
+    plt.close(fig)
+
+    freq = fftfreq(n,dt)
+    fftu = np.abs(fft(u)[:int(n / 2 - 1)])
+    fftU = np.abs(fft(U)[:int(n / 2 - 1)])
+    ffta = np.abs(fft(acc0)[:int(n / 2 - 1)])
+    fftA = np.abs(fft(Acc)[:int(n / 2 - 1)])
+
+    plt.figure(figsize=[5,5])
+    plt.plot(freq[:int(n/2-1)],fftU,label='after')
+    plt.plot(freq[:int(n/2-1)],fftu,label='before')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Fourier spectrum of displacement')
+    # plt.xlim([5e-1,5e1])
+    # plt.ylim([1e-4,1e4])
+    # plt.grid()
+    plt.legend()
+    plt.savefig('fig/u_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+
+    plt.figure(figsize=[5,5])
+    plt.plot(freq[:int(n/2-1)],fftA,label='after')
+    plt.plot(freq[:int(n/2-1)],ffta,label='before')
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Fourier spectrum of acceleration')
+    # plt.xlim([5e-1,5e1])
+    # plt.ylim([1e-4,1e4])
+    # plt.grid()
+    plt.legend()
+    plt.savefig('fig/acc_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+
+    plt.figure(figsize=[5,5])
+    plt.plot(freq[:int(n/2-1)],fftU/fftu)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('Frequency [Hz]')
+    plt.ylabel('Ratio of displacement fourier spectrum')
+    # plt.xlim([5e-1,5e1])
+    # plt.ylim([1e-4,1e4])
+    # plt.grid()
+    plt.savefig('fig/ratio_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+
+def search(acc0,time0,dt=0.01,nmax=50):
     n_acc = len(acc0)
     u,v,a = np.zeros(n_acc),np.zeros(n_acc),np.zeros(n_acc)
     u,_,_ = newmark(-acc0,u,v,a,1/6,dt,1,0,0,n_acc)
@@ -92,27 +172,5 @@ def search(acc0,dt=0.01,nmax=50):
                         best_hypo = xy_hypo
                         best_U = U
             print(f'{(n*i+j+1)/n**2*100:.1f}%')
+    output(acc0,best_U,best_xy1,best_xy2,best_hypo,time0,dt)
     return best_U,best_xy1,best_xy2,best_hypo
-
-def output(U,xy1,xy2,xy_hypo,time0,dt=0.01):
-    Acc = np.zeros_like(U)
-    Acc[1:-1] = (U[2:]-2*U[1:-1]+U[:-2])/dt**2
-    np.savetxt('data/egf_acc.txt',np.stack([time0,Acc],axis=1))
-    np.savetxt('data/U.txt',U)
-
-    fig,ax = plt.subplots()
-    ax.set_xlabel('X [km]')
-    ax.set_ylabel('Y [km]', labelpad=4.0)
-    rec0 = pat.Rectangle((0,0),L,W,fill=False,edgecolor='black')
-    rec1 = pat.Rectangle(xy1,l1,l1,fill=True,edgecolor='black',facecolor='red',alpha=0.3)
-    rec2 = pat.Rectangle(xy2,l2,l2,fill=True,edgecolor='black',facecolor='blue',alpha=0.3)
-    ax.plot() #label
-    # ax.legend()
-    ax.add_patch(rec0)
-    ax.add_patch(rec1)
-    ax.add_patch(rec2)
-    ax.plot(xy_hypo[0],xy_hypo[1],marker='*',markersize=15,color='black')
-    ymargin = 0.1*W
-    ax.set_ylim(W+ymargin,-ymargin)
-    fig.savefig('fig.png')
-    plt.close(fig)

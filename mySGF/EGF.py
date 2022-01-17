@@ -6,17 +6,15 @@ import math
 def add(ntime,nl,nw,nd,nsplit,tsplit,inexp,u,r0,r,tdelay):
     U = np.zeros(ntime)
     u[0] = 0
+    alpha = 1
     for t in range(ntime):
         for i in range(nl):
             for j in range(nw):
                 tt = t-tdelay[i,j]
                 Uij = u[max(0,tt)]
-                # Uij = u[tt]
                 for k in range((nd-1)*nsplit):
-                    # U[t] += u[t-tdelay[i,j]-k*tsplit]/nsplit
                     tt = t-tdelay[i,j]-k*tsplit
-                    Uij += np.exp(-k*inexp)/nsplit/(1-np.exp(-1)) * u[max(0,tt)]
-                    # Uij += np.exp(-tk/tau)/nsplit/(1-np.exp(-1)) * u[tt]
+                    Uij += alpha*np.exp(-k*inexp)/nsplit/(1-np.exp(-alpha)) * u[max(0,tt)]
                 U[t] += r0/r[i,j] * Uij
     return U
 
