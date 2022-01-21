@@ -6,7 +6,7 @@ acc0 = input_csv[:,1]
 time0 = input_csv[:,0]
 dt = 0.01
 
-args = search.search(acc0,time0,dt,nmax=10)
+args = search.search(acc0,time0,dt,nmax=6)
 # search.output(acc0,*args,time0)
 U,xy1,xy2,xy_hypo = args
 

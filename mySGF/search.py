@@ -1,3 +1,4 @@
+from os import getuid
 from numpy.lib.twodim_base import fliplr
 from numba import jit,njit
 import numpy as np
@@ -5,12 +6,44 @@ import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as pat
 from scipy.fftpack import fft,ifft,fftfreq
-import parameter,coordinate,EGF
+import parameter,coordinate,EGF,output_format
+
+output_format.Format.params()
 
 L,W = parameter.Lm,parameter.Wm
 S1,S2 = parameter.Sa1,parameter.Sa2
 l1,l2 = np.sqrt(S1),np.sqrt(S2)
 N1,N2 = parameter.Na1,parameter.Na2
+
+
+def integration(wave,dt,low=0.2,high=50):
+    w = np.fft.fft(wave)
+    freq = np.fft.fftfreq(len(wave),d=dt)
+    df = freq[1] - freq[0]
+
+    nt = 10
+    low0  = max(0,low - nt*df)
+    high0 = high + nt*df
+
+    w2 = np.ones_like(w)
+    for (i,f) in enumerate(freq):
+        coef = (0.0+1.0j)*2.0*math.pi*f
+
+        if abs(f) < low0:
+            w2[i] = 0.0 + 0.0j
+        elif abs(f) < low:
+            w2[i] = w[i] * (abs(f)-low0)/(low-low0) / coef
+        elif abs(f) <= high:
+            w2[i] = w[i] / coef
+        elif abs(f) <= high0:
+            w2[i] = w[i] * (abs(f)-high0)/(high-high0) / coef
+        else:
+            w2[i] = 0.0 + 0.0j
+
+    wave_int = np.real(np.fft.ifft(w2))
+    return wave_int
+
+
 
 @jit
 def newmark(acc0,Dis,Vel,Acc,beta,dt,m,c,k,N):
@@ -56,7 +89,8 @@ def cut(acc,dt=0.01):
     acc = np.real(ifft(fftacc))
     return acc
 
-def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
+def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01):
+    print('aa')
     n = len(acc0)
 
     Acc = np.zeros_like(U)
@@ -64,8 +98,6 @@ def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     cutAcc = cut(Acc,dt)
     np.savetxt('data/egf_acc.txt',np.stack([time0,cutAcc],axis=1))
 
-    u,v,a = np.zeros(n),np.zeros(n),np.zeros(n)
-    u,_,_ = newmark(-acc0,u,v,a,1/6,dt,1,0,0,n)
 
     fig,ax = plt.subplots()
     ax.set_xlabel('X [km]')
@@ -96,7 +128,7 @@ def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     plt.yscale('log')
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Fourier spectrum of displacement')
-    # plt.xlim([5e-1,5e1])
+    plt.xlim([2e-1,1e2])
     # plt.ylim([1e-4,1e4])
     # plt.grid()
     plt.legend()
@@ -109,7 +141,7 @@ def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     plt.yscale('log')
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Fourier spectrum of acceleration')
-    # plt.xlim([5e-1,5e1])
+    plt.xlim([2e-1,1e2])
     # plt.ylim([1e-4,1e4])
     # plt.grid()
     plt.legend()
@@ -121,15 +153,15 @@ def output(acc0,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     plt.yscale('log')
     plt.xlabel('Frequency [Hz]')
     plt.ylabel('Ratio of displacement fourier spectrum')
-    # plt.xlim([5e-1,5e1])
+    plt.xlim([2e-1,1e2])
     # plt.ylim([1e-4,1e4])
     # plt.grid()
     plt.savefig('fig/ratio_spectrum.png',bbox_inches="tight",pad_inches=0.05)
 
 def search(acc0,time0,dt=0.01,nmax=50):
     n_acc = len(acc0)
-    u,v,a = np.zeros(n_acc),np.zeros(n_acc),np.zeros(n_acc)
-    u,_,_ = newmark(-acc0,u,v,a,1/6,dt,1,0,0,n_acc)
+    v = integration(acc0,dt)
+    u = integration(v,dt)
 
     n = nmax
     xmin,xmax = 0,L
@@ -172,5 +204,5 @@ def search(acc0,time0,dt=0.01,nmax=50):
                         best_hypo = xy_hypo
                         best_U = U
             print(f'{(n*i+j+1)/n**2*100:.1f}%')
-    output(acc0,best_U,best_xy1,best_xy2,best_hypo,time0,dt)
+    output(acc0,u,best_U,best_xy1,best_xy2,best_hypo,time0,dt)
     return best_U,best_xy1,best_xy2,best_hypo

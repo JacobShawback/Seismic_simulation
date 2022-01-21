@@ -11,8 +11,7 @@ Format.params()
 tstart = time()
 
 # INPUT DATA --------------------------------------
-# data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
-data = Data("mySGF/data/egf_acc.txt",fname='ground/egf',div=2**3)
+data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
 # data.Output()
 # data.ResponseSpectrum()
 
@@ -44,7 +43,7 @@ house_y = House_NL(**args,If=Ify,kw=kwy)
 cmodel = Slip_Bilinear2
 # cmodel = Linear
 
-modelx = NL_4dof(house_x,data,'egf')
+modelx = NL_4dof(house_x,data,'x')
 modelx.different(cmodel=cmodel)
 modelx.plot(cmodel=cmodel)
 

@@ -470,8 +470,8 @@ class Slip_Bilinear2(Slip_Bilinear):
 
 class Slip_Bilinear3(Slip_Bilinear):
     def __init__(self,k,h):
-        d1 = 0.5e-2*h
-        d2 = 1.5e-2*h
+        d1 = h/40
+        d2 = h/10
         d3 = h
         k1,k3 = k,0.14*k
         kb1 = k3

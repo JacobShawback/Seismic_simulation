@@ -18,8 +18,8 @@ class Coordinate:
         self.rtop,self.rbottom = rtop,rbottom
         xvec = self.rtop[1]-self.rtop[0]
         yvec = self.rbottom[0]-self.rtop[0]
-        self.l = np.sqrt((xvec**2).sum())
-        self.w = np.sqrt((yvec**2).sum())
+        self.l = norm(xvec)
+        self.w = norm(yvec)
         self.ex,self.ey = xvec/self.l,yvec/self.w
         pos = np.array([10000,0,0])
         x,y = np.dot(pos,self.ex),np.dot(pos,self.ey)

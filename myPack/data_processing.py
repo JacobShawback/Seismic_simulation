@@ -81,7 +81,7 @@ class Data(object):
         if other_acc is not None:
             plt.plot(self.time0, other_acc)
         plt.xlabel('Time [sec]')
-        plt.ylabel(r'acceleration [cm/sec^2]')
+        plt.ylabel(r'acceleration [m/sec^2]')
         plt.xlim(0,self.time[-1])
         # plt.grid()
         plt.savefig(
@@ -96,7 +96,7 @@ class Data(object):
         if other_acc is not None:
             plt.plot(np.linspace(0, N * self.dt, N), other_acc)
         plt.xlabel('Time[sec]')
-        plt.ylabel(r'acceleration [cm/sec^2]')
+        plt.ylabel(r'acceleration [m/sec^2]')
         plt.xlim([140, 190])
         # plt.grid()
         plt.savefig('fig/%s_inputacc_processed_expand.png' %
@@ -149,7 +149,7 @@ class Data(object):
             plt.savefig('fig/%s_inputacc_processed_fourierSpectrum.png' %
                         self.fname, bbox_inches="tight", pad_inches=0.05)
 
-    def ResponseSpectrum(self):
+    def ResponseSpectrum(self,MaxDis2=None):
         m = 1
         h = 0.02
         acc = self.acc0
@@ -212,6 +212,8 @@ class Data(object):
 
         plt.figure()
         plt.plot(np.linspace(0.01, 10, NT), MaxDis)
+        if MaxDis2 is not None:
+            plt.plot(np.linspace(0.01, 10, NT), MaxDis2)
         plt.title(r'2%damped')
         plt.xlabel('Period [sec]')
         plt.ylabel('Displacement response spectrum [m]')
@@ -224,3 +226,5 @@ class Data(object):
             self.fname,
             bbox_inches="tight",
             pad_inches=0.05)
+
+        return MaxDis
