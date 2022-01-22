@@ -15,6 +15,11 @@ S1,S2 = parameter.Sa1,parameter.Sa2
 l1,l2 = np.sqrt(S1),np.sqrt(S2)
 N1,N2 = parameter.Na1,parameter.Na2
 
+class Dataset:
+    def __init__(self,xy1,xy2,pos1,r1,pos2,r2,hypo,xi1,xi2,u,U1,U2):
+        self.xy1,self.xy2,self.pos1,self.r1,self.pos2,self.r2,self.hypo,self.xi1,self.xi2,self.u,self.U1,self.U2 \
+            = xy1,xy2,pos1,r1,pos2,r2,hypo,xi1,xi2,u,U1,U2
+        self.U = U1+U2
 
 def integration(wave,dt,low=0.2,high=50):
     w = np.fft.fft(wave)
@@ -42,8 +47,6 @@ def integration(wave,dt,low=0.2,high=50):
 
     wave_int = np.real(np.fft.ifft(w2))
     return wave_int
-
-
 
 @jit
 def newmark(acc0,Dis,Vel,Acc,beta,dt,m,c,k,N):
@@ -89,15 +92,13 @@ def cut(acc,dt=0.01):
     acc = np.real(ifft(fftacc))
     return acc
 
-def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01):
-    print('aa')
+def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01,fname=''):
     n = len(acc0)
 
     Acc = np.zeros_like(U)
     Acc[1:-1] = (U[2:]-2*U[1:-1]+U[:-2])/dt**2
     cutAcc = cut(Acc,dt)
-    np.savetxt('data/egf_acc.txt',np.stack([time0,cutAcc],axis=1))
-
+    np.savetxt(f'data/{fname}_egf_acc.txt',np.stack([time0,cutAcc],axis=1))
 
     fig,ax = plt.subplots()
     ax.set_xlabel('X [km]')
@@ -132,7 +133,7 @@ def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     # plt.ylim([1e-4,1e4])
     # plt.grid()
     plt.legend()
-    plt.savefig('fig/u_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+    plt.savefig(f'fig/{fname}u_spectrum.png',bbox_inches="tight",pad_inches=0.05)
 
     plt.figure(figsize=[5,5])
     plt.plot(freq[:int(n/2-1)],fftA,label='after')
@@ -145,7 +146,7 @@ def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     # plt.ylim([1e-4,1e4])
     # plt.grid()
     plt.legend()
-    plt.savefig('fig/acc_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+    plt.savefig(f'fig/{fname}acc_spectrum.png',bbox_inches="tight",pad_inches=0.05)
 
     plt.figure(figsize=[5,5])
     plt.plot(freq[:int(n/2-1)],fftU/fftu)
@@ -156,10 +157,9 @@ def output(acc0,u,U,xy1,xy2,xy_hypo,time0,dt=0.01):
     plt.xlim([2e-1,1e2])
     # plt.ylim([1e-4,1e4])
     # plt.grid()
-    plt.savefig('fig/ratio_spectrum.png',bbox_inches="tight",pad_inches=0.05)
+    plt.savefig(f'fig/{fname}ratio_spectrum.png',bbox_inches="tight",pad_inches=0.05)
 
 def search(acc0,time0,dt=0.01,nmax=50):
-    n_acc = len(acc0)
     v = integration(acc0,dt)
     u = integration(v,dt)
 
@@ -175,8 +175,7 @@ def search(acc0,time0,dt=0.01,nmax=50):
     nsplit1 = math.floor(tau1/(N1-1)/dt)
     nsplit2 = math.floor(tau2/(N2-1)/dt)
     Acc = np.zeros_like(u)
-    Sd,best_xy1,best_xy2,best_hypo = 0,(0,0),(0,0),(0,0)
-    best_U = 0
+    Sd = 0
     for i in range(n):
         for j in range(n):
             x1 = xmin+i*dx
@@ -199,10 +198,9 @@ def search(acc0,time0,dt=0.01,nmax=50):
                     Sdijkl = ResponseSpectrum(Acc,dt,T=0.38)
                     if Sdijkl > Sd:
                         Sd = Sdijkl
-                        best_xy1 = x1,y1
-                        best_xy2 = x2,y2
-                        best_hypo = xy_hypo
-                        best_U = U
+                        d = Dataset((x1,y1),(x2,y2),pos1,r1,pos2,r2,xy_hypo,xi1,xi2,u,U1,U2)
             print(f'{(n*i+j+1)/n**2*100:.1f}%')
-    output(acc0,u,best_U,best_xy1,best_xy2,best_hypo,time0,dt)
-    return best_U,best_xy1,best_xy2,best_hypo
+    output(acc0,u,d.U,d.xy1,d.xy2,d.hypo,time0,dt)
+    output(acc0,u,d.U1,d.xy1,d.xy2,d.hypo,time0,dt,'U1')
+    output(acc0,u,d.U2,d.xy1,d.xy2,d.hypo,time0,dt,'U2')
+    return d
