@@ -52,7 +52,7 @@ def interpolation(acc0,time0=None,dt0=0.01,div=10):
             acc[div*(i-1)+j] = a+(b-a)*(j-1)/div
     return acc,time,dt0/div
 
-def integration(wave,dt,low=0.2,high=50):
+def integration(wave,dt,low=0.2):
     high = 1/dt/2
     w = np.fft.fft(wave)
     freq = np.fft.fftfreq(len(wave),d=dt)
