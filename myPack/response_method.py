@@ -503,7 +503,7 @@ class NL_4dof(Response):
     def get_names(self):
         floor_name = ['2nd floor','1st floor','Sway','Rocking']
         floor_file = ['2f','1f','sway','rock']
-        unit_list = ['[m]','[m/sec]','[m/sec^2]']
+        unit_list = ['','/sec','/sec^2']
         type_tag = ['Displacement','Velocity','Acceleration']
         models = ['2f column','2f wall','1f column','1f wall','Sway','Rocking']
         return floor_name,floor_file,unit_list,type_tag,models
@@ -523,7 +523,7 @@ class NL_4dof(Response):
         u = Dis,Vel,Acc
         return {'u':u,'angle':angle}
 
-    def plot(self,cmodel,title='',second=None,gif=False):
+    def plot(self,cmodel,title='',second=None,gif=False,xlim=None):
         floor_name,floor_file,unit_list,type_tag,models = self.get_names()
         lnl = '_l' if cmodel==Linear else '_s' if cmodel==Slip else '_sb'
 
@@ -539,19 +539,21 @@ class NL_4dof(Response):
         Nt = len(self.acc)
         N0 = self.wave.N0
         tstart,tend = int((Nt-1.1*N0)/2),int((Nt+1*N0)/2)
+        xlim = [self.time[tstart],self.time[tend]] if xlim is None else xlim
         ymergin = 1.1
         for i,(name,fname) in enumerate(zip(floor_name,floor_file)):
             for j,(tt,unit) in enumerate(zip(type_tag,unit_list)):
+                unit = f'[rad{unit}]' if name=='Rocking' else f'[m{unit}]'
                 u = u_list[j]
                 if second is not None:
                     u2 = u_list2[j]
 
                 # ================ Wave ================
                 fig,ax = plt.subplots()
-                ax.set_title(title+name)
+                # ax.set_title(title+name)
                 ax.set_xlabel('Time [sec]')
                 ax.set_ylabel('{} {}'.format(tt,unit), labelpad=6.0)
-                umax = 'max:{:.3g}'.format(np.abs(u[i]).max())
+                umax = 'max: {:.3g}'.format(np.abs(u[i]).max())
                 ax.plot(self.time[tstart:tend],u[i,tstart:tend],label=tag1+umax) #label
                 ymax = np.abs(u[i]).max() * ymergin
                 if second is not None:
@@ -559,7 +561,7 @@ class NL_4dof(Response):
                     ax.plot(self.time[tstart:tend],u2[i,tstart:tend],label=tag2+umax2) #label
                     ymax2 = np.abs(u[i]).max() * ymergin
                     ymax = max(ymax,ymax2)
-                ax.set_xlim(self.time[tstart],self.time[tend])
+                ax.set_xlim(*xlim)
                 ax.set_ylim(-ymax,ymax)
                 ax.legend()
                 if second is not None:
@@ -582,7 +584,7 @@ class NL_4dof(Response):
         ax.plot([self.time[tstart],self.time[tend]],[1/40,1/40],color='red')
         ax.plot([self.time[tstart],self.time[tend]],[-1/40,-1/40],color='red')
         ax.legend()
-        ax.set_xlim(self.time[tstart],self.time[tend])
+        ax.set_xlim(*xlim)
         ymax = np.abs(angle).max() * ymergin
         ymax = max(ymax,1/40*ymergin)
         ax.set_ylim(-ymax,ymax)
@@ -619,8 +621,8 @@ class NL_4dof(Response):
             for i,m in enumerate(models):
                 fig,ax = plt.subplots(figsize=(3,3))
                 # ax.set_title('elongation - force')
-                ax.set_xlabel('Elongation of spring [m]')
-                ax.set_ylabel('Reaction force [N]', labelpad=6.0)
+                ax.set_xlabel('Elongation [m]')
+                ax.set_ylabel('Force [N]', labelpad=6.0)
                 ax.plot(x[i],f[i],label=m)
                 ax.legend(bbox_to_anchor=(1,0),loc='lower right',borderaxespad=0)
                 fname = f'{self.fig_path}constitution/{self.fname}{lnl}_{i+1}'
@@ -629,8 +631,8 @@ class NL_4dof(Response):
                 if gif and (i==1 or i==3):
                     fig,ax = plt.subplots(figsize=(3,3))
                     ax.set_title(m)
-                    ax.set_xlabel('Elongation of spring [m]')
-                    ax.set_ylabel('Reaction force [N]', labelpad=6.0)
+                    ax.set_xlabel('Elongation [m]')
+                    ax.set_ylabel('Force [N]', labelpad=6.0)
                     make_gif(x[i][gstart:gend],f[i][gstart:gend],fig,ax,fname+'.gif',gtime*2)
 
 

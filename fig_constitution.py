@@ -30,15 +30,15 @@ for i in range(nseq):
 
 fig,ax = plt.subplots(figsize=(5,5))
 ax.plot(x,sb.F,label='sb') #label
-ax.legend()
-ax.grid()
+# ax.legend()
+# ax.grid()
 fig.savefig('fig/slip_bilinear.png')
 plt.close(fig)
 
 fig,ax = plt.subplots(figsize=(5,5))
 ax.plot(x2,sb2.F,label='sb') #label
-ax.legend()
-ax.grid()
+# ax.legend()
+# ax.grid()
 fig.savefig('fig/slip_bilinear2.png')
 plt.close(fig)
 
@@ -84,18 +84,18 @@ def plot_gif2(x,ys,fig,ax,path='fig/constitution.gif',ylim=None):
     ani = animation.ArtistAnimation(fig,ims,interval=interval)
     ani.save(path)
 
-ylim = np.abs(sb.F).max() * 1.1
-ylim = (-ylim,ylim)
+# ylim = np.abs(sb.F).max() * 1.1
+# ylim = (-ylim,ylim)
 
-ys = sb.F,sb.slip.F,sb.bilinear.F
-fig = plt.figure(figsize=(12,12))
-ax = [fig.add_subplot(221),fig.add_subplot(222),fig.add_subplot(224)]
-plot_gif2(x,ys,fig,ax,'fig/slip_bilinear.gif',ylim)
+# ys = sb.F,sb.slip.F,sb.bilinear.F
+# fig = plt.figure(figsize=(12,12))
+# ax = [fig.add_subplot(221),fig.add_subplot(222),fig.add_subplot(224)]
+# plot_gif2(x,ys,fig,ax,'fig/slip_bilinear.gif',ylim)
 
-ylim = np.abs(sb2.F).max() * 1.1
-ylim = (-ylim,ylim)
+# ylim = np.abs(sb2.F).max() * 1.1
+# ylim = (-ylim,ylim)
 
-ys = sb2.F,sb2.slip.F,sb2.bilinear.F
-fig = plt.figure(figsize=(12,12))
-ax = [fig.add_subplot(221),fig.add_subplot(222),fig.add_subplot(224)]
-plot_gif2(x2,ys,fig,ax,'fig/slip_bilinear2.gif',ylim)
+# ys = sb2.F,sb2.slip.F,sb2.bilinear.F
+# fig = plt.figure(figsize=(12,12))
+# ax = [fig.add_subplot(221),fig.add_subplot(222),fig.add_subplot(224)]
+# plot_gif2(x2,ys,fig,ax,'fig/slip_bilinear2.gif',ylim)

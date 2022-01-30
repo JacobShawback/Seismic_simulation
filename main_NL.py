@@ -36,7 +36,7 @@ cth = 2.509e7
 # args = {'m1':m1,'m2':m2,'mf':mf,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.24,'slip_rate_c':0.85,'slip_rate_w':0.85}
 args = {'m1':m1,'m2':m2,'mf':mf,'kc':kc,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.24,'slip_rate_c':0.85,'slip_rate_w':0.85}
 house_x = House_NL(**args,If=Ifx,kw=kwx)
-house_y = House_NL(**args,If=Ify,kw=kwy)
+# house_y = House_NL(**args,If=Ify,kw=kwy)
 
 
 # # FREQ ANALYSIS -------------------------------------

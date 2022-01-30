@@ -14,9 +14,11 @@ tstart = time()
 # data = Data("data/JR_Takatori_NS.acc",fname='ground/takatori',div=2**3)
 acc = np.loadtxt('data/structure.dat')
 acc -= acc.mean()
+print((acc.max()-acc.min())/2)
+acc *= 100
 dt = 0.01
 np.savetxt('data/acc_egf.txt',np.stack([np.linspace(0,dt*len(acc),len(acc)),acc],1),fmt='%.5e')
-data = Data("mySGF/data/egf_acc.txt",fname='ground/acc_egf.txt',div=2**3)
+data = Data("data/acc_egf.txt",fname='ground/acc_egf.txt',div=2**3)
 # data.Output()
 # data.ResponseSpectrum()
 
@@ -41,7 +43,7 @@ cth = 2.509e7
 # args = {'m1':m1,'m2':m2,'mf':mf,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.24,'slip_rate_c':0.85,'slip_rate_w':0.85}
 args = {'m1':m1,'m2':m2,'mf':mf,'kc':kc,'kh':kh,'kth':kth,'l1':l1,'l2':l2,'cf':cf,'cth':cth,'alpha_c':0.05,'alpha_w':0.24,'slip_rate_c':0.85,'slip_rate_w':0.85}
 house_x = House_NL(**args,If=Ifx,kw=kwx)
-house_y = House_NL(**args,If=Ify,kw=kwy)
+# house_y = House_NL(**args,If=Ify,kw=kwy)
 
 
 # # FREQ ANALYSIS -------------------------------------
@@ -50,7 +52,7 @@ cmodel = Slip_Bilinear2
 
 modelx = NL_4dof(house_x,data,'egf')
 modelx.different(cmodel=cmodel)
-modelx.plot(cmodel=cmodel)
+modelx.plot(cmodel=cmodel,xlim=[20,50])
 
 # modely = NL_4dof(house_y,data,'y')
 # modely.different(cmodel=cmodel)

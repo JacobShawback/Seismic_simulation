@@ -3,6 +3,35 @@ import matplotlib.pyplot as plt
 from scipy.fftpack import fft, ifft, fftfreq
 from myPack.response_method import Response
 
+def integration(wave,dt,low=0.2,high=50):
+    high = 1/dt/2
+    w = np.fft.fft(wave)
+    freq = np.fft.fftfreq(len(wave),d=dt)
+    df = freq[1] - freq[0]
+
+    nt = 10
+    low0  = max(0,low - nt*df)
+    high0 = high + nt*df
+
+    w2 = np.ones_like(w)
+    for (i,f) in enumerate(freq):
+        coef = (0.0+1.0j)*2.0*np.pi*f
+        if np.abs(coef) <= 0.0:
+            w2[i] = 0.0j
+        elif abs(f) < low0:
+            w2[i] = 0.0 + 0.0j
+        elif abs(f) < low:
+            w2[i] = w[i] * (abs(f)-low0)/(low-low0) / coef
+        elif abs(f) <= high:
+            w2[i] = w[i] / coef
+        elif abs(f) <= high0:
+            w2[i] = w[i] * (abs(f)-high0)/(high-high0) / coef
+        else:
+            w2[i] = 0.0 + 0.0j
+
+    wave_int = np.real(np.fft.ifft(w2))
+    return wave_int
+
 class Data(object):
     def __init__(self,path,dt=0.01,fname='eathquake1',div=1):
         csv_input = np.loadtxt(path)
@@ -49,12 +78,6 @@ class Data(object):
         # self.fftAccAfter[np.abs(self.freqList) > fn] = 0  # ナイキスト周波数以上を落とす
         accAfter = np.real(ifft(self.fftAccAfter))
         self.acc0 = accAfter
-        # b = np.sin(np.linspace(0,self.dt0*len(self.acc)*2*np.pi*2,len(self.acc)))*6
-        # a = np.ones_like(self.acc)
-        # nnn = int(len(self.acc)/2)
-        # a[:nnn] = np.linspace(0,1,nnn)
-        # b *= a
-        # self.acc0 = np.concatenate([zeros,b,zeros])
 
     def Interpolation(self,div=10,to_acc0=True):
         self.dtInterpolated = self.dt / div
@@ -73,34 +96,62 @@ class Data(object):
             self.dt0 = self.dtInterpolated
             self.N0 = self.N * div
 
-    def Output(self,other_acc=None):
+    def Output(self,other_acc=None,other_dt=0.01,other_tag='before'):
         N = len(self.acc0)
-        freqList = fftfreq(N, d=self.dt)
-        plt.figure()
-        plt.plot(self.time0, self.acc0)
+        freqList = fftfreq(N, d=self.dt0)
+
+        plt.figure(figsize=[4,2])
+        plt.plot(self.time0, self.acc0,label='after')
         if other_acc is not None:
-            plt.plot(self.time0, other_acc)
+            plt.plot(self.time0, other_acc,label=other_tag)
+            plt.legend()
         plt.xlabel('Time [sec]')
         plt.ylabel(r'acceleration [m/sec^2]')
         plt.xlim(0,self.time[-1])
+        plt.xlim([10,60])
         # plt.grid()
         plt.savefig(
-            'fig/%s_inputacc_processed.png' %
+            'fig/%s_input_acc.png' %
             self.fname,
             bbox_inches="tight",
             pad_inches=0.05)
 
-        plt.figure()
-        #plt.plot(range(N), self.acc)
-        plt.plot(np.linspace(0, N * self.dt, N), self.acc0)
+        plt.figure(figsize=[4,2])
+        v = integration(self.acc0,self.dt0)
+        plt.plot(self.time0, v,label='after')
         if other_acc is not None:
-            plt.plot(np.linspace(0, N * self.dt, N), other_acc)
-        plt.xlabel('Time[sec]')
-        plt.ylabel(r'acceleration [m/sec^2]')
-        plt.xlim([140, 190])
+            other_v = integration(other_acc,other_dt)
+            plt.plot(self.time0, other_v,label=other_tag)
+            plt.legend()
+        plt.xlabel('Time [sec]')
+        plt.ylabel(r'velocity [m/sec]')
+        plt.xlim(0,self.time[-1])
+        plt.xlim([10,60])
         # plt.grid()
-        plt.savefig('fig/%s_inputacc_processed_expand.png' %
-                    self.fname, bbox_inches="tight", pad_inches=0.05)
+        plt.savefig(
+            'fig/%s_input_vel.png' %
+            self.fname,
+            bbox_inches="tight",
+            pad_inches=0.05)
+
+        plt.figure(figsize=[4,2])
+        d = integration(v,self.dt0)
+        plt.plot(self.time0, d,label='after')
+        if other_acc is not None:
+            other_d = integration(other_v,other_dt,other_dt)
+            plt.plot(self.time0, other_d,label=other_tag)
+            plt.legend()
+        plt.xlabel('Time [sec]')
+        plt.ylabel(r'displacement [m]')
+        plt.xlim(0,self.time[-1])
+        plt.xlim([10,60])
+        # plt.grid()
+        plt.savefig(
+            'fig/%s_input_disp.png' %
+            self.fname,
+            bbox_inches="tight",
+            pad_inches=0.05)
+
 
         plt.figure(figsize=[3,3])
         plt.plot(freqList[:int(N / 2 - 1)],
@@ -120,10 +171,11 @@ class Data(object):
 
         plt.figure(figsize=[3,3])
         plt.plot(freqList[:int(N / 2 - 1)],
-            np.abs(self.fftAccAfter[:int(N / 2 - 1)]))
+            np.abs(self.fftAccAfter[:int(N / 2 - 1)]),label='before')
         if other_acc is not None:
             plt.plot(freqList[:int(N / 2 - 1)],
-                np.abs(fft(other_acc)[:int(N / 2 - 1)]))
+                np.abs(fft(other_acc)[:int(N / 2 - 1)]),label=other_tag)
+            plt.legend()
         plt.xscale('log')
         plt.yscale('log')
         plt.xlabel('Frequency [Hz]')
