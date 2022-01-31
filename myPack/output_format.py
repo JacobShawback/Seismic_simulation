@@ -6,8 +6,8 @@ from matplotlib import rcParams
 class Format:
     def params():
         rcParams['font.family'] = 'sans-serif'
-        rcParams['font.sans-serif'] = ["ヒラギノ丸ゴ ProN W4, 16"]
-        plt.rcParams['font.family'] = 'Times New Roman'  # font familyの設定
+        rcParams['font.sans-serif'] = ['Hiragino sans']
+        # plt.rcParams['font.family'] = 'Times New Roman'  # font familyの設定
         plt.rcParams['mathtext.fontset'] = 'stix'  # math fontの設定
         plt.rcParams["font.size"] = 10  # 全体のフォントサイズが変更されます。
         plt.rcParams['xtick.labelsize'] = 8  # 軸だけ変更されます。
@@ -16,7 +16,7 @@ class Format:
         plt.rcParams['ytick.direction'] = 'in'  # y axis in
         plt.rcParams['axes.labelpad'] = 6 # y axis in
         # plt.rcParams['axes.grid'] = True # make grid
-        plt.rcParams["legend.loc"] = 'upper right'
+        plt.rcParams["legend.loc"] = 'upper left'
         plt.rcParams["legend.fancybox"] = False  # 丸角
         plt.rcParams["legend.framealpha"] = 1  # 透明度の指定、0で塗りつぶしなし
         plt.rcParams["legend.edgecolor"] = 'black'  # edgeの色を変更

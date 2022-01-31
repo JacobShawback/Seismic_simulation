@@ -5,9 +5,9 @@ from matplotlib import rcParams
 
 class Format:
     def params():
-        rcParams['font.family'] = 'sans-serif'
-        rcParams['font.sans-serif'] = ["ヒラギノ丸ゴ ProN W4, 16"]
-        plt.rcParams['font.family'] = 'Times New Roman'  # font familyの設定
+        # rcParams['font.family'] = 'sans-serif'
+        # rcParams['font.family'] = 'Hiragino sans'
+        # rcParams['font.sans-serif'] = 'Hiragino sans'
         plt.rcParams['mathtext.fontset'] = 'stix'  # math fontの設定
         plt.rcParams["font.size"] = 10  # 全体のフォントサイズが変更されます。
         plt.rcParams['xtick.labelsize'] = 8  # 軸だけ変更されます。
