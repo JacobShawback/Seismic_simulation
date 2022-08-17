@@ -20,7 +20,7 @@ class Linear:
         # 更新予定の値たち
         self.next_f,self.next_x = 0,0
 
-    def sheer(self,x):
+    def shear(self,x):
         self.next_x = x
         self.next_f = self.k*x
         return self.next_f
@@ -91,7 +91,7 @@ class Slip(Linear):
             kstart,kend = self.k2,self.k1
         return self.f[-1] + kstart*(mid-start) + kend*(end-mid)
 
-    def sheer(self,x):
+    def shear(self,x):
         State = self.State
         self.next_x = x
         state = self.state
@@ -225,7 +225,7 @@ class Bilinear(Slip):
         self._next_emin = value
         self._next_emax = None
 
-    def sheer(self, x):
+    def shear(self, x):
         State = self.State
         self.next_x = x
         state = self.state
@@ -277,9 +277,9 @@ class Slip_Bilinear(Linear):
         self.bilinear = Bilinear(**bilin_args)
         self.next_f,self.next_x = 0,0
 
-    def sheer(self,x):
+    def shear(self,x):
         self.next_x = x
-        self.next_f = self.slip.sheer(x)+self.bilinear.sheer(x)
+        self.next_f = self.slip.shear(x)+self.bilinear.shear(x)
         return self.next_f
 
     def push(self):
@@ -334,7 +334,7 @@ class Slip2(Slip):
         end = self.next_x
         return self.f[-1] + kstart*(mid-start) + kend*(end-mid)
 
-    def sheer(self,x):
+    def shear(self,x):
         State = self.State
         self.next_x = x
         state = self.state
@@ -491,15 +491,15 @@ class Combined:
         # model: list of constitution models
         # example: [[Linear(*args)], [Slip(*args), Bilinear(*args)]]
         # This means 1st-floor uses model Linear(*args) and 2nd-floor uses Slip(*args) AND Bilinear(*args).
-        # If more than one model is in one floor, the sheer force will be added.
+        # If more than one model is in one floor, the shear force will be added.
         self.model = model
 
-    def sheer(self,x):
+    def shear(self,x):
         f = []
         for floor,x_floor in zip(self.model,x):
             f_floor = 0
             for part in floor:
-                f_floor += part.sheer(x_floor)
+                f_floor += part.shear(x_floor)
             f += [f_floor]
         return np.array(f)
 

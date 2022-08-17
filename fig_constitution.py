@@ -23,9 +23,9 @@ x2 = x0*amp2
 sb = Slip_Bilinear2(2000e3,3)
 sb2 = Slip_Bilinear2(2000e3,3)
 for i in range(nseq):
-    sb.sheer(x[i])
+    sb.shear(x[i])
     sb.push()
-    sb2.sheer(x2[i])
+    sb2.shear(x2[i])
     sb2.push()
 
 fig,ax = plt.subplots(figsize=(5,5))

@@ -431,7 +431,7 @@ class NL_4dof(Response):
                 F = np.dot(K,Dis[:,i])
             else:
                 x = self.dis_to_x(Dis[:,i])
-                f = model.sheer(x)
+                f = model.shear(x)
                 F = self.x_to_dis(f)
                 model.push()
 
@@ -470,7 +470,7 @@ class NL_4dof(Response):
             # x: バネの伸び
             x = self.dis_to_x(D1)
             # kx: バネの反力
-            kx = model.sheer(x)
+            kx = model.shear(x)
             # Kx： 運動方程式における剛性の項（ベクトル）
             Kx = self.x_to_dis(kx)
             Fa0 = np.dot(self.F,a0[i+1])
@@ -488,7 +488,7 @@ class NL_4dof(Response):
                     # x: バネの伸び
                     x = self.dis_to_x(D3)
                     # kx: バネの反力
-                    kx = model.sheer(x)
+                    kx = model.shear(x)
                     # Kx： 運動方程式における剛性の項（ベクトル）
                     Kx = self.x_to_dis(kx)
                     A4 = np.dot(LA.inv(M),np.dot(-C,V3)-Kx-Fa0)

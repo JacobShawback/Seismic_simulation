@@ -24,7 +24,7 @@ x *= amp
 
 model = Slip_Bilinear2(2000e3,3)
 for i in range(nseq):
-    model.sheer(x[i])
+    model.shear(x[i])
     model.push()
 
 fig,ax = plt.subplots(figsize=(5,6))

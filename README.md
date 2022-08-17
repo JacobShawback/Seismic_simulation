@@ -26,7 +26,7 @@ For seismic simulation class 2021
     - x: elongation of springs (vector), Dis: displacement (vector)
 
   - ```python
-    f = model.sheer(x)
+    f = model.shear(x)
     ```
 
     - f : reaction force (vector), x : elongation of springs (vector)
@@ -38,4 +38,3 @@ For seismic simulation class 2021
     - F: internal force (vector), f : reaction force (vector)
 
 - ***Be aware that (Dis, F) and (x, f) are written in different coordinates.***
-
